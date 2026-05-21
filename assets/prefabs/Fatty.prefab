@@ -66,7 +66,7 @@
       "z": 1
     },
     "_mobility": 0,
-    "_layer": 33554432,
+    "_layer": 1,
     "_euler": {
       "__type__": "cc.Vec3",
       "x": 0,
@@ -119,7 +119,7 @@
       "z": 1
     },
     "_mobility": 0,
-    "_layer": 33554432,
+    "_layer": 1,
     "_euler": {
       "__type__": "cc.Vec3",
       "x": 0,
@@ -285,7 +285,7 @@
       "z": 1
     },
     "_mobility": 0,
-    "_layer": 33554432,
+    "_layer": 1,
     "_euler": {
       "__type__": "cc.Vec3",
       "x": 0,
@@ -388,9 +388,20 @@
       {
         "__uuid__": "045b521b-1464-4947-aae7-e0b5414d896e",
         "__expectedType__": "cc.AnimationClip"
+      },
+      {
+        "__uuid__": "86744660-63a0-4536-8ac7-8869c5854178",
+        "__expectedType__": "cc.AnimationClip"
+      },
+      {
+        "__uuid__": "5ed6dbd8-cd6c-4e36-8fcd-23e4fe2eebe2",
+        "__expectedType__": "cc.AnimationClip"
       }
     ],
-    "_defaultClip": null,
+    "_defaultClip": {
+      "__uuid__": "8efe4933-3b1f-49a4-bc1d-fa5051ae94a6",
+      "__expectedType__": "cc.AnimationClip"
+    },
     "_id": ""
   },
   {
@@ -451,7 +462,7 @@
       "z": 1
     },
     "_mobility": 0,
-    "_layer": 33554432,
+    "_layer": 1,
     "_euler": {
       "__type__": "cc.Vec3",
       "x": 0,
@@ -654,9 +665,33 @@
     "__prefab": {
       "__id__": 31
     },
-    "effectNode": {
-      "__id__": 2
+    "effectNodes": [
+      {
+        "__id__": 2
+      }
+    ],
+    "walkAnimX": "fatty_body_x",
+    "walkAnimY": "fatty_body_y",
+    "idleAnim": "",
+    "deathAnim": "",
+    "deathEffectAnim": "blood_cloud",
+    "atkAnimX": "fatty_attack_x",
+    "atkAnimY": "fatty_attack_y",
+    "atkHeadAnimX": "",
+    "atkHeadAnimY": "",
+    "atkEffectAnim": "soot_bomb",
+    "atkRange": 60,
+    "atkCooldown": 2,
+    "atkFreeze": 0,
+    "idleHorizontal": {
+      "__uuid__": "6e26b03f-e7f4-4fea-af16-7edba6d54c97@f9941",
+      "__expectedType__": "cc.SpriteFrame"
     },
+    "idleVertical": {
+      "__uuid__": "75cfc94a-9990-459c-bc39-cc90dc3296a8@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
+    "hurtSounds": [],
     "deathSounds": [
       {
         "__uuid__": "07784100-605e-4bad-8854-76336ddb84d4",
@@ -671,27 +706,26 @@
         "__expectedType__": "cc.AudioClip"
       }
     ],
-    "deathVolume": 0.75,
+    "atkSounds": [
+      {
+        "__uuid__": "08d18cc4-8995-4d68-ae34-345c005d4d58",
+        "__expectedType__": "cc.AudioClip"
+      }
+    ],
+    "sfxVolume": 1,
     "bodyNode": {
       "__id__": 10
     },
     "headNode": {
       "__id__": 18
     },
+    "atkPushForce": 5,
     "trackRange": 250,
     "moveSpeed": 1.5,
     "wanderRatio": 0.6,
     "maxHp": 20,
     "hitFlashDuration": 0.5,
     "deathFadeDuration": 1.4,
-    "idleHorizontal": {
-      "__uuid__": "6e26b03f-e7f4-4fea-af16-7edba6d54c97@f9941",
-      "__expectedType__": "cc.SpriteFrame"
-    },
-    "idleVertical": {
-      "__uuid__": "75cfc94a-9990-459c-bc39-cc90dc3296a8@f9941",
-      "__expectedType__": "cc.SpriteFrame"
-    },
     "_id": ""
   },
   {

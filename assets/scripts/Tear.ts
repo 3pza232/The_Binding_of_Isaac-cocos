@@ -38,6 +38,8 @@ export class Tear extends Component {
     private _piercing = false;
     private _isHorizontal = false;
     private _damage = 1;
+    private _homing = false;
+    private _homingStrength = 8;
     private _breakSnd: AudioClip | null = null;
     private _breakVol = 1;
 
@@ -80,7 +82,8 @@ export class Tear extends Component {
         momentumY: number,
         damage: number,
         breakSnd: AudioClip | null,
-        breakVol: number
+        breakVol: number,
+        homing = false,
     ): void {
         this._speed = speed;
         this._range = range;
@@ -88,6 +91,7 @@ export class Tear extends Component {
         this._fallStartDist = range * fallStartRatio;
         this._piercing = piercing;
         this._damage = damage;
+        this._homing = homing;
         this._breakSnd = breakSnd;
         this._breakVol = breakVol;
         this._isHorizontal = Math.abs(dir.x) > 0.5;
@@ -121,6 +125,11 @@ export class Tear extends Component {
         const dy = p.y - this._startPos.y;
         const traveled = Math.sqrt(dx * dx + dy * dy);
 
+        // 追尾：微调速度方向朝向最近怪物
+        if (this._homing && this._state === "fly") {
+            this._steerTowardEnemy(dt);
+        }
+
         // 水平泪弹：进入下降阶段
         if (this._state === "fly" && this._isHorizontal && traveled >= this._fallStartDist) {
             this._state = "descend";
@@ -132,6 +141,47 @@ export class Tear extends Component {
 
         if (traveled >= this._range) {
             this._startBreak();
+        }
+    }
+
+    /** 追尾：找到最近怪物，微调速度向其偏移 */
+    private _steerTowardEnemy(dt: number): void {
+        let room = this.node.parent;
+        while (room && !room.getComponent('Room')) room = room.parent;
+        if (!room) return;
+
+        let nearest: Node | null = null;
+        let nearestD2 = Infinity;
+        room.walk((n) => {
+            const m = n.getComponent('Monster') as any;
+            if (m && m.alive) {
+                const dx = n.worldPosition.x - this.node.worldPosition.x;
+                const dy = n.worldPosition.y - this.node.worldPosition.y;
+                const d2 = dx * dx + dy * dy;
+                if (d2 < nearestD2) { nearestD2 = d2; nearest = n; }
+            }
+        });
+        if (!nearest) return;
+
+        const tx = nearest.worldPosition.x - this.node.worldPosition.x;
+        const ty = nearest.worldPosition.y - this.node.worldPosition.y;
+        const mag = Math.sqrt(tx * tx + ty * ty);
+        if (mag <= 0) return;
+
+        // 目标方向 × 速度 = 期望速度
+        const desiredX = (tx / mag) * this._speed;
+        const desiredY = (ty / mag) * this._speed;
+        const v = this._rigidBody.linearVelocity;
+        // steering: 当前速度向期望速度 lerp
+        const t = Math.min(this._homingStrength * dt, 1);
+        const newX = v.x + (desiredX - v.x) * t;
+        const newY = v.y + (desiredY - v.y) * t;
+        const newMag = Math.sqrt(newX * newX + newY * newY);
+        if (newMag > 0) {
+            this._rigidBody.linearVelocity = v2(
+                (newX / newMag) * this._speed,
+                (newY / newMag) * this._speed,
+            );
         }
     }
 

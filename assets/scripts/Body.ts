@@ -16,19 +16,19 @@ import {
 
 const { ccclass, property } = _decorator;
 
-/** 身体朝向 */
 export type Facing = "right" | "left" | "down" | "up";
 
-/**
- * 身体控制组件，挂载于 Isaac 节点。
- * WASD 移动 + RigidBody2D 驱动 + 动画切换。
- */
 @ccclass("Body")
 export class Body extends Component {
-    // ── 属性 ──
+
+    // ── 静态全局（跨传送持久）──
+    static moveSpeed = -1;
 
     @property({ displayName: "移动速度(px/s)" })
-    moveSpeed = 5;
+    private _moveSpeed = 5;
+
+    get moveSpeed(): number { return Body.moveSpeed; }
+    set moveSpeed(v: number) { Body.moveSpeed = v; }
 
     @property({ type: SpriteFrame, displayName: "水平空闲帧" })
     idleHorizontal: SpriteFrame | null = null;
@@ -38,34 +38,32 @@ export class Body extends Component {
 
     // ── 公开状态 ──
 
-    /** 身体当前朝向（供 Head 等外部组件读取） */
-    get facing(): Facing {
-        return this._facing;
-    }
+    get facing(): Facing { return this._facing; }
+    get velocity(): Vec2 { return this._currentVel; }
+    resetAnim(): void { this._currentAnim = null; }
 
-    /** 当前移动速度（Body 自身维护的副本，避免触及 Box2D 只读对象） */
-    get velocity(): Vec2 {
-        return this._currentVel;
-    }
+    // ── 静态按键 ──
 
-    // ── 内部引用 ──
+    private static _heldKeys = new Set<KeyCode>();
+
+    // ── 内部 ──
 
     private _bodyNode: Node = null!;
     private _rigidBody: RigidBody2D = null!;
     private _animation: Animation = null!;
     private _sprite: Sprite = null!;
 
-    // ── 运行时状态 ──
-
     private _pressed = new Set<KeyCode>();
     private _currentAnim: "x" | "y" | null = null;
     private _facing: Facing = "down";
-    private _currentVel = v2(0, 0); // 对外暴露的速度副本
-    private _vel2 = v2(0, 0); // 帧内复用方向/速度向量
+    private _currentVel = v2(0, 0);
+    private _vel2 = v2(0, 0);
 
     // ── 生命周期 ──
 
     onLoad(): void {
+        if (Body.moveSpeed < 0) Body.moveSpeed = this._moveSpeed;
+
         this._bodyNode = this.node.getChildByName("Body")!;
         this._rigidBody = this.node.getComponent(RigidBody2D)!;
         this._animation = this._bodyNode.getComponent(Animation)!;
@@ -75,6 +73,7 @@ export class Body extends Component {
     start(): void {
         input.on(Input.EventType.KEY_DOWN, this._onKeyDown, this);
         input.on(Input.EventType.KEY_UP, this._onKeyUp, this);
+        this._pressed = new Set(Body._heldKeys);
     }
 
     onDestroy(): void {
@@ -83,13 +82,16 @@ export class Body extends Component {
     }
 
     update(_dt: number): void {
+        const health = this.node.getComponent('PlayerHealth') as any;
+        if (health?.isStunned) return;
+
         const dx = this._axis("D", "A");
         const dy = this._axis("W", "S");
         const moving = dx !== 0 || dy !== 0;
 
         if (moving) {
             this._move(dx, dy);
-        } else if (this._currentAnim !== null) {
+        } else {
             this._idle();
         }
     }
@@ -98,7 +100,7 @@ export class Body extends Component {
 
     private _move(dx: number, dy: number): void {
         this._vel2.set(dx, dy).normalize();
-        this._currentVel.set(this._vel2.x * this.moveSpeed, this._vel2.y * this.moveSpeed);
+        this._currentVel.set(this._vel2.x * Body.moveSpeed, this._vel2.y * Body.moveSpeed);
         this._rigidBody.linearVelocity = this._currentVel;
 
         this._facing = dx > 0 ? "right" : dx < 0 ? "left" : dy > 0 ? "up" : "down";
@@ -142,16 +144,20 @@ export class Body extends Component {
     }
 
     private _onKeyDown(e: EventKeyboard): void {
-        if (this._isWASD(e.keyCode)) this._pressed.add(e.keyCode);
+        if (this._isWASD(e.keyCode)) {
+            this._pressed.add(e.keyCode);
+            Body._heldKeys.add(e.keyCode);
+        }
     }
 
     private _onKeyUp(e: EventKeyboard): void {
-        if (this._isWASD(e.keyCode)) this._pressed.delete(e.keyCode);
+        if (this._isWASD(e.keyCode)) {
+            this._pressed.delete(e.keyCode);
+            Body._heldKeys.delete(e.keyCode);
+        }
     }
 
     private _isWASD(k: KeyCode): boolean {
-        return (
-            k === KeyCode.KEY_W || k === KeyCode.KEY_A || k === KeyCode.KEY_S || k === KeyCode.KEY_D
-        );
+        return k === KeyCode.KEY_W || k === KeyCode.KEY_A || k === KeyCode.KEY_S || k === KeyCode.KEY_D;
     }
 }

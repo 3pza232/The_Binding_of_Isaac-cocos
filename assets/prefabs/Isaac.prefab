@@ -44,10 +44,13 @@
       },
       {
         "__id__": 28
+      },
+      {
+        "__id__": 30
       }
     ],
     "_prefab": {
-      "__id__": 30
+      "__id__": 32
     },
     "_lpos": {
       "__type__": "cc.Vec3",
@@ -69,7 +72,7 @@
       "z": 1
     },
     "_mobility": 0,
-    "_layer": 33554432,
+    "_layer": 1,
     "_euler": {
       "__type__": "cc.Vec3",
       "x": 0,
@@ -122,7 +125,7 @@
       "z": 1
     },
     "_mobility": 0,
-    "_layer": 33554432,
+    "_layer": 1,
     "_euler": {
       "__type__": "cc.Vec3",
       "x": 0,
@@ -225,6 +228,10 @@
       {
         "__uuid__": "466adc0f-40b9-4641-ace5-5ea59c2606be",
         "__expectedType__": "cc.AnimationClip"
+      },
+      {
+        "__uuid__": "ad4ba1a1-42bb-47b5-ac09-e28d5f3b9b3c",
+        "__expectedType__": "cc.AnimationClip"
       }
     ],
     "_defaultClip": null,
@@ -291,7 +298,7 @@
       "z": 1
     },
     "_mobility": 0,
-    "_layer": 33554432,
+    "_layer": 1,
     "_euler": {
       "__type__": "cc.Vec3",
       "x": 0,
@@ -498,7 +505,7 @@
     "_group": 4,
     "_density": 1,
     "_sensor": false,
-    "_friction": 0.2,
+    "_friction": 1,
     "_restitution": 0,
     "_offset": {
       "__type__": "cc.Vec2",
@@ -590,10 +597,10 @@
       "__expectedType__": "cc.Prefab"
     },
     "tearSpeed": 13,
-    "range": 200,
+    "range": 250,
     "fireRate": 0.5,
     "fallStartRatio": 0.6,
-    "fallSpeed": 0.1,
+    "fallSpeed": 0.3,
     "spawnOffsetX": 20,
     "spawnOffsetY": 20,
     "piercing": false,
@@ -614,6 +621,56 @@
   {
     "__type__": "cc.CompPrefabInfo",
     "fileId": "39PB0YeflNRY06hQ2lVcUA"
+  },
+  {
+    "__type__": "0f3aaJETR5MBoqxgAY8pcQa",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 1
+    },
+    "_enabled": true,
+    "__prefab": {
+      "__id__": 31
+    },
+    "maxHp": 6,
+    "invulnDuration": 1,
+    "stunDuration": 0.2,
+    "hurtSounds": [
+      {
+        "__uuid__": "622bad10-8454-4aa7-ac6d-8bce1949f232",
+        "__expectedType__": "cc.AudioClip"
+      },
+      {
+        "__uuid__": "f58f8946-f8e4-4329-84e3-8ec29274c0e0",
+        "__expectedType__": "cc.AudioClip"
+      },
+      {
+        "__uuid__": "14f5899e-e0d7-4540-b24a-8b37ef5ebaae",
+        "__expectedType__": "cc.AudioClip"
+      }
+    ],
+    "deathSounds": [
+      {
+        "__uuid__": "846e6168-e574-4f2a-8083-c54f6e1c3189",
+        "__expectedType__": "cc.AudioClip"
+      },
+      {
+        "__uuid__": "59177591-54ee-4267-9965-a663d45ff5f7",
+        "__expectedType__": "cc.AudioClip"
+      },
+      {
+        "__uuid__": "624b24c7-0094-4dc1-b0a8-a7b16805f32d",
+        "__expectedType__": "cc.AudioClip"
+      }
+    ],
+    "sfxVolume": 1,
+    "_id": ""
+  },
+  {
+    "__type__": "cc.CompPrefabInfo",
+    "fileId": "9eGFFSLEVG8b1XIW/n6WRK"
   },
   {
     "__type__": "cc.PrefabInfo",

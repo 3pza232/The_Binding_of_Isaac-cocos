@@ -14,6 +14,7 @@ import {
     Vec3,
     Tween,
 } from "cc";
+import { RoomType } from "./Room";
 
 const { ccclass, property } = _decorator;
 
@@ -89,14 +90,6 @@ export class DoorController extends Component {
 
     close(): void {
         this._animate(false);
-    }
-
-    /** 短暂禁用传送（玩家进门后防止入口门弹回） */
-    briefCooldown(): void {
-        this._canTeleport = false;
-        this.scheduleOnce(() => {
-            this._canTeleport = this._isOpen && !this._isAnimating;
-        }, 0.5);
     }
 
     // ── 动画：门板向门轴压缩 ──
@@ -179,13 +172,13 @@ export class DoorController extends Component {
         // 外侧门：targetRoom 是 Boss 房
         if (this.targetRoom) {
             const r = this.targetRoom.getComponent("Room") as any;
-            if (r && r.roomType === 4) return r;
+            if (r && r.roomType === RoomType.BOSS) return r;
         }
         // 内侧门：门自身所在房间是 Boss 房
         let node = this.node.parent;
         while (node) {
             const r = node.getComponent("Room") as any;
-            if (r && r.roomType === 4) return r;
+            if (r && r.roomType === RoomType.BOSS) return r;
             node = node.parent;
         }
         return null;
@@ -206,10 +199,15 @@ export class DoorController extends Component {
 
     // ── 传送 ──
 
+    private static _lastTeleportTime = 0;
+
     private _onContact(_self: Collider2D, other: Collider2D): void {
         if (!this._canTeleport || this._pendingIsaac || !this.targetRoom || !this.isaacPrefab)
             return;
         if (other.group !== 4) return; // PLAYER
+        // 全局冷却：0.5s 内禁止连续传送（防止入口门弹回）
+        if (Date.now() - DoorController._lastTeleportTime < 500) return;
+        DoorController._lastTeleportTime = Date.now();
         this._pendingIsaac = other.node;
     }
 
@@ -236,18 +234,13 @@ export class DoorController extends Component {
         const entryDoor = this._findEntryDoor(this.targetRoom!, oldRoomNode);
         newIsaac.setPosition(this._spawnPosAtDoor(entryDoor));
 
-        // 入口门短暂冷却，防止新 Isaac 立即碰撞弹回
-        if (entryDoor) {
-            const entryDC = entryDoor.getComponent(DoorController);
-            if (entryDC) entryDC.briefCooldown();
-        }
-
         targetRoomComp.enter();
 
-        const gm = find("Canvas/GameManager");
-        if (gm) {
-            const rp = this.targetRoom!.position;
-            gm.setPosition(-rp.x, -rp.y, gm.position.z);
+        // 平滑移动摄像机
+        const cam = find('Canvas/Camera');
+        if (cam) {
+            const cc = cam.getComponent('CameraController') as any;
+            if (cc) cc.moveToRoom(this.targetRoom!);
         }
     }
 

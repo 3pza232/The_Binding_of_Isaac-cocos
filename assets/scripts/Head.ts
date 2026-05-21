@@ -54,6 +54,10 @@ export class Head extends Component {
         return DIR_VEC[d] ?? null;
     }
 
+    // ── 静态按键时间戳（跨 Isaac 实例持久）──
+
+    private static _heldPressTimes = new Map<KeyCode, number>();
+
     // ── 内部引用 ──
 
     private _headNode: Node = null!;
@@ -78,6 +82,8 @@ export class Head extends Component {
     start(): void {
         input.on(Input.EventType.KEY_DOWN, this._onKeyDown, this);
         input.on(Input.EventType.KEY_UP, this._onKeyUp, this);
+        // 继承传送前已按下的方向键
+        this._pressTimes = new Map(Head._heldPressTimes);
     }
 
     onDestroy(): void {
@@ -95,7 +101,9 @@ export class Head extends Component {
     private _onKeyDown(e: EventKeyboard): void {
         const d = KEY_TO_DIR[e.keyCode];
         if (d === undefined) return;
-        this._pressTimes.set(e.keyCode, Date.now());
+        const ts = Date.now();
+        this._pressTimes.set(e.keyCode, ts);
+        Head._heldPressTimes.set(e.keyCode, ts);
         this._applyDir(d);
     }
 
@@ -103,9 +111,9 @@ export class Head extends Component {
         const d = KEY_TO_DIR[e.keyCode];
         if (d === undefined) return;
         this._pressTimes.delete(e.keyCode);
+        Head._heldPressTimes.delete(e.keyCode);
 
         if (this._pressTimes.size === 0) {
-            // 重置缓存强制刷新空闲帧，否则身体朝向未变时 _followBody 会跳过
             this._lastFollowFacing = "";
             this._followBody();
         } else {

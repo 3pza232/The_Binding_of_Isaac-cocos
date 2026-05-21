@@ -1,6 +1,13 @@
 import {
-    _decorator, Component, Node, Prefab, instantiate,
-    AudioClip, AudioSource, Vec2, Vec3,
+    _decorator,
+    Component,
+    Node,
+    Prefab,
+    instantiate,
+    AudioClip,
+    AudioSource,
+    Vec2,
+    Vec3,
 } from "cc";
 import { Head } from "./Head";
 import { Body } from "./Body";
@@ -8,25 +15,61 @@ import { Tear } from "./Tear";
 
 const { ccclass, property } = _decorator;
 
-/**
- * 玩家发射泪弹组件，挂载于 Isaac 节点。
- * 读取 Head 组件的瞄准方向，按间隔实例化 Tear 预制体并注入参数。
- */
 @ccclass("Shoot")
 export class Shoot extends Component {
-    // ── 属性（全部可调参数集中于此） ──
+    // ── 静态全局（跨传送持久，藏品可改）──
+
+    static tearDamage = -1;
+    static damageMul = -1;
+    static range = -1;
+    static tearSpeed = -1;
+    static fireRate = -1;
+    static homingEnabled = false;
+
+    get tearDamage(): number {
+        return Shoot.tearDamage;
+    }
+    set tearDamage(v: number) {
+        Shoot.tearDamage = v;
+    }
+    get damageMultiplier(): number {
+        return Shoot.damageMul;
+    }
+    set damageMultiplier(v: number) {
+        Shoot.damageMul = v;
+    }
+    get range(): number {
+        return Shoot.range;
+    }
+    set range(v: number) {
+        Shoot.range = v;
+    }
+    get tearSpeed(): number {
+        return Shoot.tearSpeed;
+    }
+    set tearSpeed(v: number) {
+        Shoot.tearSpeed = v;
+    }
+    get fireRate(): number {
+        return Shoot.fireRate;
+    }
+    set fireRate(v: number) {
+        Shoot.fireRate = v;
+    }
+
+    // ── 属性 ──
 
     @property({ type: Prefab, displayName: "泪弹预制体" })
     tearPrefab: Prefab = null!;
 
     @property({ displayName: "泪弹速度" })
-    tearSpeed = 10;
+    private _tearSpeed = 13;
 
     @property({ displayName: "射程" })
-    range = 200;
+    private _range = 250;
 
     @property({ displayName: "射速间隔(秒)" })
-    fireRate = 0.5;
+    private _fireRate = 0.5;
 
     @property({ displayName: "下降起始比例", range: [0, 1, 0.05], slide: true })
     fallStartRatio = 0.6;
@@ -34,20 +77,23 @@ export class Shoot extends Component {
     @property({ displayName: "水平下落速度" })
     fallSpeed = 5;
 
-    @property({ displayName: "水平发射偏移(距Head中心)" })
+    @property({ displayName: "水平发射偏移" })
     spawnOffsetX = 5;
 
-    @property({ displayName: "垂直发射偏移(距Head中心)" })
+    @property({ displayName: "垂直发射偏移" })
     spawnOffsetY = 5;
 
     @property({ displayName: "穿墙" })
     piercing = false;
 
-    @property({ displayName: "甩弹比例(玩家速度倍率)", range: [0, 1, 0.01], slide: true })
+    @property({ displayName: "甩弹比例", range: [0, 1, 0.01], slide: true })
     momentumFactor = 0.1;
 
     @property({ displayName: "泪弹伤害" })
-    tearDamage = 1;
+    private _tearDamage = 3.5;
+
+    @property({ displayName: "伤害倍率" })
+    private _damageMul = 1.0;
 
     @property({ type: AudioClip, displayName: "射击音效" })
     fireSound: AudioClip | null = null;
@@ -61,7 +107,7 @@ export class Shoot extends Component {
     @property({ displayName: "破裂音量", range: [0, 1, 0.05], slide: true })
     breakVolume = 1;
 
-    // ── 内部状态 ──
+    // ── 缓存 ──
 
     private _head: Head = null!;
     private _body: Body = null!;
@@ -73,11 +119,20 @@ export class Shoot extends Component {
     // ── 生命周期 ──
 
     onLoad(): void {
+        if (Shoot.tearDamage < 0) {
+            Shoot.tearDamage = this._tearDamage;
+            Shoot.damageMul = this._damageMul;
+            Shoot.range = this._range;
+            Shoot.tearSpeed = this._tearSpeed;
+            Shoot.fireRate = this._fireRate;
+        }
         this._head = this.node.getComponent(Head)!;
         this._body = this.node.getComponent(Body)!;
         this._headNode = this.node.getChildByName("Head")!;
         this._audioSrc = this.node.getComponent(AudioSource) || this.node.addComponent(AudioSource);
     }
+
+    // ── 射击 ──
 
     update(dt: number): void {
         this._cooldown -= dt;
@@ -86,14 +141,11 @@ export class Shoot extends Component {
         const dir = this._head.aimDirection;
         if (!dir) return;
 
-        this._cooldown = this.fireRate;
+        this._cooldown = Shoot.fireRate;
         this._spawnTear(dir);
     }
 
-    // ── 发射 ──
-
     private _spawnTear(dir: Vec2): void {
-        // 甩弹：发射瞬间捕获玩家速度，发射后泪弹与玩家完全脱钩
         const bv = this._body.velocity;
         const mx = bv.x * this.momentumFactor;
         const my = bv.y * this.momentumFactor;
@@ -106,23 +158,23 @@ export class Shoot extends Component {
         if (tearComp) {
             tearComp.init(
                 dir,
-                this.tearSpeed,
-                this.range,
+                Shoot.tearSpeed,
+                Shoot.range,
                 this.fallSpeed,
                 this.fallStartRatio,
                 this.piercing,
                 mx,
                 my,
-                this.tearDamage,
+                Shoot.tearDamage * Shoot.damageMul,
                 this.breakSound,
                 this.breakVolume,
+                Shoot.homingEnabled
             );
 
             if (this.fireSound) this._audioSrc.playOneShot(this.fireSound, this.fireVolume);
         }
     }
 
-    /** 以 Head 节点世界坐标为基准，按方向加偏移 */
     private _calcSpawnPos(dir: Vec2): Vec3 {
         this._headNode.getWorldPosition(this._spawnPos);
         if (dir.x !== 0) {
