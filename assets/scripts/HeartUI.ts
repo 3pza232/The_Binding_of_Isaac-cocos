@@ -56,9 +56,9 @@ export class HeartUI extends Component {
 
             // i 越大越先扣血（右下优先）
             const remain = hp - i * HP_PER_HEART;
-            if (remain >= HP_PER_HEART) sp.spriteFrame = this.heartFull;
-            else if (remain >= 1)       sp.spriteFrame = this.heartHalf;
-            else                        sp.spriteFrame = this.heartEmpty;
+            if (remain >= HP_PER_HEART) sp.spriteFrame = this.heartFull!;
+            else if (remain >= 1)       sp.spriteFrame = this.heartHalf!;
+            else                        sp.spriteFrame = this.heartEmpty!;
         }
     }
 }

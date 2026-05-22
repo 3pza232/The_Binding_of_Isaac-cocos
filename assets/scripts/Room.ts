@@ -1,6 +1,7 @@
 import { _decorator, Component, Enum } from "cc";
 import { DoorController } from "./DoorController";
 import { Monster } from "./Monster";
+import { BossIntroManager } from "./BossIntroManager";
 
 const { ccclass, property } = _decorator;
 
@@ -82,6 +83,19 @@ export class Room extends Component {
     enter(): void {
         this._isActive = true;
         this.node.active = true;
+
+        // Boss 入场展示（仅在首次进入且 Boss 存活时）
+        if (this.roomType === RoomType.BOSS && !this._cleared) {
+            const mgr = this.node.getChildByName('RoomManager');
+            if (mgr) {
+                for (const child of mgr.children) {
+                    if (child.getComponent(Monster)) {
+                        BossIntroManager.show(child, this.node.uuid);
+                        break;
+                    }
+                }
+            }
+        }
 
         // 根据房间类型与清除状态决定门开关
         if (this._cleared) {

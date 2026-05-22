@@ -1,9 +1,13 @@
 import {
     _decorator, Component, Node, Collider2D, Contact2DType,
-    AudioClip, AudioSource, tween, v3,
+    AudioClip, AudioSource, tween, v3, Sprite,
 } from 'cc';
+import { CollectibleUI } from './CollectibleUI';
+import { CollectiblePool } from './CollectiblePool';
 
 const { ccclass, property } = _decorator;
+
+const PLAYER_GROUP = 4;
 
 @ccclass('ItemBase')
 export abstract class ItemBase extends Component {
@@ -66,21 +70,32 @@ export abstract class ItemBase extends Component {
 
     // ── 拾取 ──
 
-    private _onContact(_self: Collider2D, other: Collider2D): void {
-        if (other.group !== 4) return;
+    private _pickedUp = false;
 
-        const collider = this.node.getComponent(Collider2D);
-        if (collider) collider.enabled = false;
+    private _onContact(_self: Collider2D, other: Collider2D): void {
+        if (other.group !== PLAYER_GROUP || this._pickedUp) return;
+        this._pickedUp = true;
 
         this.onPickup(other.node);
+
+        const displaySprite = this.getComponent(Sprite);
+        if (displaySprite && displaySprite.spriteFrame) {
+            CollectibleUI.instance?.addCollectible(displaySprite.spriteFrame);
+        }
+
+        CollectiblePool.markCollected(this.node.name);
 
         if (this.pickupSound) {
             const src = this.node.getComponent(AudioSource) || this.node.addComponent(AudioSource);
             src.playOneShot(this.pickupSound, this.sfxVolume);
         }
 
-        this.node.active = false;
-        this.scheduleOnce(() => this.node.destroy(), 0);
+        this.scheduleOnce(() => {
+            const collider = this.node.getComponent(Collider2D);
+            if (collider) collider.enabled = false;
+            this.node.active = false;
+            this.node.destroy();
+        });
     }
 
     protected abstract onPickup(player: Node): void;

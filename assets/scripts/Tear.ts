@@ -1,6 +1,7 @@
 import {
     _decorator,
     Component,
+    Node,
     RigidBody2D,
     Animation,
     Collider2D,

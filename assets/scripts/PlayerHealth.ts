@@ -6,6 +6,8 @@ import {
 
 const { ccclass, property } = _decorator;
 
+const MONSTER_GROUP = 8;
+
 @ccclass('PlayerHealth')
 export class PlayerHealth extends Component {
 
@@ -151,7 +153,7 @@ export class PlayerHealth extends Component {
 
     private _onContact(_self: Collider2D, other: Collider2D): void {
         if (!this._alive || this._invulnTimer > 0) return;
-        if (other.group !== 8) return;
+        if (other.group !== MONSTER_GROUP) return;
 
         const monster = other.node.getComponent('Monster') as any;
         if (!monster || !monster.alive) return;

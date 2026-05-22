@@ -18,7 +18,7 @@ export class Bumbino extends Monster {
     override walkAnimY = 'Bumbino_Walk';
 
     @property({ displayName: '空闲动画(空=用帧)', override: true })
-    override idleAnim = 'Bumibino_Idle';
+    override idleAnim = 'Bumbino_Idle';
 
     @property({ displayName: '死亡动画(身体)', override: true })
     override deathAnim = 'Bumbino_Defeated';

@@ -1,31 +1,23 @@
 import {
-    _decorator,
-    Component,
-    Node,
-    UITransform,
-    Sprite,
-    Collider2D,
-    Contact2DType,
-    Prefab,
-    instantiate,
-    find,
-    tween,
-    v3,
-    Vec3,
-    Tween,
+    _decorator, Component, Node, UITransform, Sprite, Collider2D,
+    Contact2DType, Prefab, instantiate, find, tween, v3, Vec3, Tween,
 } from "cc";
 import { RoomType } from "./Room";
+import { GameStats } from "./GameStats";
 
 const { ccclass, property } = _decorator;
 
-/**
- * 门控制组件，挂载于 Door 节点。
- * 门板向门轴压缩的开关门动画 + 碰撞传送玩家到目标房间。
- * 门开关状态由 Room 组件控制，本组件只负责动画与传送。
- */
+type DoorStyle = 'normal' | 'treasure' | 'shop' | 'boss';
+
+/** Door 节点上所有可能的子节点名（用于初始化时统一隐藏） */
+const ALL_VARIANTS = [
+    'Black', 'LeftPanel', 'RightPanel', 'Frame',
+    'LeftPanel_Boss', 'RightPanel_Boss', 'Frame_Boss', 'Frame_Boss_Eyes', 'Frame_Boss_Light',
+    'RightPanel_Key', 'Frame_Treasure', 'Frame_Shop',
+];
+
 @ccclass("DoorController")
 export class DoorController extends Component {
-    // ── 属性 ──
 
     @property({ displayName: "动画时长(秒)" })
     animationDuration = 0.5;
@@ -39,8 +31,13 @@ export class DoorController extends Component {
     @property({ displayName: "门边生成距离(px)" })
     spawnDistance = 50;
 
+    @property({ displayName: '需要钥匙' })
+    requiresKey = false;
+
     // ── 内部状态 ──
 
+    private _doorStyle: DoorStyle = 'normal';
+    private _unlocked = false;
     private _isOpen = false;
     private _isAnimating = false;
     private _canTeleport = false;
@@ -52,21 +49,14 @@ export class DoorController extends Component {
     private _rightOrigW = 0;
     private _anchorsApplied = false;
 
-    // Boss 门专属
     private _eyesNode: Node | null = null;
     private _lightNode: Node | null = null;
 
     // ── 生命周期 ──
 
     start(): void {
-        this._leftPanel = this.node.getChildByName("LeftPanel");
-        this._rightPanel = this.node.getChildByName("RightPanel");
-
-        if (this._leftPanel) this._leftOrigW = this._leftPanel.getComponent(UITransform)!.width;
-        if (this._rightPanel) this._rightOrigW = this._rightPanel.getComponent(UITransform)!.width;
-
-        this._eyesNode = this.node.getChildByName("Eyes");
-        this._lightNode = this.node.getChildByName("Light");
+        this._determineStyle();
+        this._initVisuals();
 
         const collider = this.node.getComponent(Collider2D);
         if (collider) {
@@ -75,7 +65,7 @@ export class DoorController extends Component {
     }
 
     update(_dt: number): void {
-        if (this._pendingIsaac) {
+        if (this._pendingIsaac && this._canTeleport) {
             this._doTeleport(this._pendingIsaac);
             this._pendingIsaac = null;
         }
@@ -85,6 +75,7 @@ export class DoorController extends Component {
     // ── Public API ──
 
     open(): void {
+        if (this.requiresKey && !this._unlocked) return;
         this._animate(true);
     }
 
@@ -92,7 +83,101 @@ export class DoorController extends Component {
         this._animate(false);
     }
 
-    // ── 动画：门板向门轴压缩 ──
+    // ── 门类型判断：自身房间或目标房间中任一是特殊类型即采用对应样式 ──
+
+    private _determineStyle(): void {
+        const ownType = this._getOwnRoomType();
+        const targetType = this._getRoomType(this.targetRoom);
+
+        if (targetType === RoomType.BOSS || ownType === RoomType.BOSS) {
+            this._doorStyle = 'boss';
+        } else if (targetType === RoomType.TREASURE || ownType === RoomType.TREASURE) {
+            this._doorStyle = 'treasure';
+        } else if (targetType === RoomType.SHOP || ownType === RoomType.SHOP) {
+            this._doorStyle = 'shop';
+        }
+    }
+
+    private _getRoomType(node: Node | null): number | null {
+        if (!node) return null;
+        const room = node.getComponent('Room') as any;
+        return room?.roomType ?? null;
+    }
+
+    private _getOwnRoomType(): number | null {
+        let node = this.node.parent;
+        while (node) {
+            const room = node.getComponent('Room') as any;
+            if (room) return room.roomType;
+            node = node.parent;
+        }
+        return null;
+    }
+
+    /** 当前所在房间是否安全（无战斗） */
+    private _isRoomSafe(): boolean {
+        let node = this.node.parent;
+        while (node) {
+            const room = node.getComponent('Room') as any;
+            if (!room) { node = node.parent; continue; }
+            const rt = room.roomType;
+            if (rt !== RoomType.MONSTER && rt !== RoomType.BOSS) return true;
+            return room.cleared;
+        }
+        return true;
+    }
+
+    // ── 初始化视觉：隐藏全部变体 → 按风格激活对应子节点 ──
+
+    private _initVisuals(): void {
+        for (const name of ALL_VARIANTS) {
+            const node = this.node.getChildByName(name);
+            if (node) node.active = false;
+        }
+
+        switch (this._doorStyle) {
+            case 'boss':
+                this._leftPanel = this.node.getChildByName('LeftPanel_Boss');
+                this._rightPanel = this.node.getChildByName('RightPanel_Boss');
+                this._eyesNode = this.node.getChildByName('Frame_Boss_Eyes');
+                this._lightNode = this.node.getChildByName('Frame_Boss_Light');
+                this._show('Black', 'Frame_Boss', 'Frame_Boss_Eyes');
+                break;
+            case 'treasure':
+                this._leftPanel = this.node.getChildByName('LeftPanel');
+                this._rightPanel = this.node.getChildByName('RightPanel_Key');
+                this._show('Black', 'LeftPanel', 'Frame_Treasure');
+                break;
+            case 'shop':
+                this._leftPanel = this.node.getChildByName('LeftPanel');
+                this._rightPanel = this.node.getChildByName('RightPanel_Key');
+                this._show('Black', 'LeftPanel', 'Frame_Shop');
+                break;
+            default:
+                this._leftPanel = this.node.getChildByName('LeftPanel');
+                this._rightPanel = this.node.getChildByName('RightPanel');
+                this._show('Black', 'Frame');
+                break;
+        }
+
+        if (this._leftPanel) {
+            this._leftPanel.active = true;
+            this._leftOrigW = this._leftPanel.getComponent(UITransform)!.width;
+        }
+        if (this._rightPanel) {
+            this._rightPanel.active = true;
+            this._rightOrigW = this._rightPanel.getComponent(UITransform)!.width;
+        }
+    }
+
+    private _show(...names: string[]): void {
+        for (const name of names) {
+            const node = this.node.getChildByName(name);
+            if (node) node.active = true;
+        }
+    }
+
+    // ── 动画：门板向门轴方向压缩/展开 ──
 
     private _animate(open: boolean): void {
         if (!this._leftPanel || !this._rightPanel) return;
@@ -165,16 +250,13 @@ export class DoorController extends Component {
         );
     }
 
-    // ── Boss 门视觉 ──
+    // ── Boss 视觉：Eyes 随存活/死亡切换，Light 随开门切换 ──
 
-    /** 查找与本门关联的 Boss 房间：优先 targetRoom，其次门自身所在的房间 */
     private _findBossRoom(): any {
-        // 外侧门：targetRoom 是 Boss 房
         if (this.targetRoom) {
             const r = this.targetRoom.getComponent("Room") as any;
             if (r && r.roomType === RoomType.BOSS) return r;
         }
-        // 内侧门：门自身所在房间是 Boss 房
         let node = this.node.parent;
         while (node) {
             const r = node.getComponent("Room") as any;
@@ -185,14 +267,11 @@ export class DoorController extends Component {
     }
 
     private _syncBossVisuals(): void {
-        if (!this._eyesNode && !this._lightNode) return;
-
+        if (this._doorStyle !== 'boss') return;
         const bossRoom = this._findBossRoom();
         if (!bossRoom) return;
-
         const bossDead = bossRoom.cleared ?? false;
         const doorOpen = this._isOpen && !this._isAnimating;
-
         if (this._eyesNode) this._eyesNode.active = !bossDead;
         if (this._lightNode) this._lightNode.active = doorOpen && !bossDead;
     }
@@ -202,11 +281,22 @@ export class DoorController extends Component {
     private static _lastTeleportTime = 0;
 
     private _onContact(_self: Collider2D, other: Collider2D): void {
-        if (!this._canTeleport || this._pendingIsaac || !this.targetRoom || !this.isaacPrefab)
-            return;
-        if (other.group !== 4) return; // PLAYER
-        // 全局冷却：0.5s 内禁止连续传送（防止入口门弹回）
+        if (this._pendingIsaac || !this.targetRoom || !this.isaacPrefab) return;
+        if (other.group !== 4) return; // PLAYER group
         if (Date.now() - DoorController._lastTeleportTime < 500) return;
+
+        // 钥匙门：战斗中禁止开锁
+        if (this.requiresKey && !this._unlocked) {
+            if (!this._isRoomSafe()) return;
+            if (!GameStats.spendKey(1)) return;
+            this._unlocked = true;
+            this._animate(true);
+            DoorController._lastTeleportTime = Date.now();
+            this._pendingIsaac = other.node;
+            return;
+        }
+
+        if (!this._canTeleport) return;
         DoorController._lastTeleportTime = Date.now();
         this._pendingIsaac = other.node;
     }
@@ -230,13 +320,11 @@ export class DoorController extends Component {
         const newIsaac = instantiate(this.isaacPrefab!);
         roomMgr.addChild(newIsaac);
 
-        // 在目标房间中找到连接回上一个房间的门，在其内侧生成
         const entryDoor = this._findEntryDoor(this.targetRoom!, oldRoomNode);
         newIsaac.setPosition(this._spawnPosAtDoor(entryDoor));
 
         targetRoomComp.enter();
 
-        // 平滑移动摄像机
         const cam = find('Canvas/Camera');
         if (cam) {
             const cc = cam.getComponent('CameraController') as any;
@@ -244,7 +332,6 @@ export class DoorController extends Component {
         }
     }
 
-    /** 在 roomNode 中查找 targetRoom 指回 prevRoomNode 的门 */
     private _findEntryDoor(roomNode: Node, prevRoomNode: Node | null | undefined): Node | null {
         if (!prevRoomNode) return null;
         const doorContainer = roomNode.getChildByName("Door");
@@ -256,19 +343,13 @@ export class DoorController extends Component {
         return null;
     }
 
-    /** 在门内侧 spawnDistance 像素处生成 */
     private _spawnPosAtDoor(doorNode: Node | null): Vec3 {
         if (!doorNode) return v3(0, 0, 0);
-
         const p = doorNode.position;
         const d = this.spawnDistance;
-
-        // 根据门在房间中的位置判断所在墙壁，向房间内侧偏移
         if (Math.abs(p.x) >= Math.abs(p.y)) {
-            // 左/右墙：x 向房间中心偏移
             return v3(p.x + (p.x > 0 ? -d : d), p.y, 0);
         } else {
-            // 上/下墙：y 向房间中心偏移
             return v3(p.x, p.y + (p.y > 0 ? -d : d), 0);
         }
     }
