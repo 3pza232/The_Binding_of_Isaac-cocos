@@ -83,7 +83,7 @@ export class Body extends Component {
 
     update(_dt: number): void {
         const health = this.node.getComponent('PlayerHealth') as any;
-        if (health?.isStunned) return;
+        if (!health?.alive || health?.isStunned) return;
 
         const dx = this._axis("D", "A");
         const dy = this._axis("W", "S");

@@ -34,6 +34,9 @@ export class DoorController extends Component {
     @property({ displayName: '需要钥匙' })
     requiresKey = false;
 
+    get unlocked(): boolean { return this._unlocked; }
+    set unlocked(v: boolean) { this._unlocked = v; }
+
     // ── 内部状态 ──
 
     private _doorStyle: DoorStyle = 'normal';
@@ -80,6 +83,7 @@ export class DoorController extends Component {
     }
 
     close(): void {
+        if (this.requiresKey && this._unlocked) return; // 已解锁钥匙门永不关闭
         this._animate(false);
     }
 

@@ -36,13 +36,15 @@ export class Room extends Component {
     private _doors: DoorController[] = [];
     private _isActive = false;
     private _cleared = false;
+    private _itemTaken = false;
 
-    get cleared(): boolean {
-        return this._cleared;
-    }
-    get isActive(): boolean {
-        return this._isActive;
-    }
+    get cleared(): boolean { return this._cleared; }
+    get isActive(): boolean { return this._isActive; }
+    get itemTaken(): boolean { return this._itemTaken; }
+    get doors(): DoorController[] { return this._doors; }
+
+    setCleared(v: boolean): void { this._setCleared(v); }
+    markItemTaken(): void { this._itemTaken = true; }
 
     // ── 生命周期 ──
 
@@ -59,6 +61,7 @@ export class Room extends Component {
         // 非开始房间默认失活（门状态由 enter() 首次进入时设定）
         if (this.roomType !== RoomType.START) {
             this.scheduleOnce(() => {
+                if (this._isActive) return; // 已被外部激活（如读档）
                 this.node.active = false;
             }, 0);
         } else {
@@ -90,7 +93,9 @@ export class Room extends Component {
             if (mgr) {
                 for (const child of mgr.children) {
                     if (child.getComponent(Monster)) {
-                        BossIntroManager.show(child, this.node.uuid);
+                        const gx = Math.round(this.node.position.x / 900);
+                        const gy = Math.round(this.node.position.y / 600);
+                        BossIntroManager.show(child, `${gx},${gy}`);
                         break;
                     }
                 }

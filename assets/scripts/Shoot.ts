@@ -26,6 +26,15 @@ export class Shoot extends Component {
     static fireRate = -1;
     static homingEnabled = false;
 
+    static reset(): void {
+        Shoot.tearDamage = -1;
+        Shoot.damageMul = -1;
+        Shoot.range = -1;
+        Shoot.tearSpeed = -1;
+        Shoot.fireRate = -1;
+        Shoot.homingEnabled = false;
+    }
+
     get tearDamage(): number {
         return Shoot.tearDamage;
     }

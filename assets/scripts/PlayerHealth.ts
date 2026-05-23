@@ -1,7 +1,7 @@
 import {
     _decorator, Component, Node, Animation, Sprite, SpriteFrame,
     AudioClip, AudioSource, Collider2D, Contact2DType,
-    RigidBody2D, v2, Color,
+    RigidBody2D, UIOpacity, tween, v2, v3, Color, find,
 } from 'cc';
 
 const { ccclass, property } = _decorator;
@@ -40,6 +40,7 @@ export class PlayerHealth extends Component {
     static get maxHp(): number { return PlayerHealth._maxHp; }
     static resetHp(max: number): void { PlayerHealth._hp = PlayerHealth._maxHp = max; }
     static setMaxHp(max: number): void { PlayerHealth._maxHp = Math.min(max, 16); }
+    static restoreHp(hp: number, maxHp: number): void { PlayerHealth._hp = hp; PlayerHealth._maxHp = maxHp; }
 
     // ── 实例状态 ──
 
@@ -59,6 +60,7 @@ export class PlayerHealth extends Component {
     private _audioSrc: AudioSource = null!;
     private _idleH: SpriteFrame | null = null;
     private _idleV: SpriteFrame | null = null;
+    private _killerNode: Node | null = null;
 
     get currentHp(): number { return PlayerHealth._hp; }
     get alive(): boolean { return this._alive; }
@@ -100,11 +102,7 @@ export class PlayerHealth extends Component {
     }
 
     update(dt: number): void {
-        if (!this._alive) {
-            this._deathTimer += dt;
-            if (this._deathTimer >= 1.0) this.node.destroy();
-            return;
-        }
+        if (!this._alive) return;
 
         if (this._stunTimer > 0) {
             this._stunTimer -= dt;
@@ -158,6 +156,7 @@ export class PlayerHealth extends Component {
         const monster = other.node.getComponent('Monster') as any;
         if (!monster || !monster.alive) return;
 
+        this._killerNode = other.node;
         this._takeDamage();
     }
 
@@ -194,7 +193,6 @@ export class PlayerHealth extends Component {
 
     private _die(): void {
         this._alive = false;
-        this._deathTimer = 0;
         this._headNode.active = false;
         this._bodyAnim.play('isaac_body_hit');
 
@@ -205,8 +203,40 @@ export class PlayerHealth extends Component {
 
         const collider = this.node.getComponent(Collider2D);
         if (collider) collider.enabled = false;
-        this._rigidBody.linearVelocity = v2(0, 0);
 
-        // TODO: 死亡后逻辑
+        const killer = this._killerNode;
+
+        // 物理回调内禁止直接改刚体，延迟到下一帧
+        this.scheduleOnce(() => {
+            this._rigidBody.enabled = false;
+            this._rigidBody.linearVelocity = v2(0, 0);
+
+            const opacity = this.node.getComponent(UIOpacity) || this.node.addComponent(UIOpacity);
+            opacity.opacity = 255;
+            const startX = this.node.position.x;
+
+            tween(this.node)
+                .by(1.5, { position: v3(0, 120, 0) }, {
+                    easing: 'sineInOut',
+                    onUpdate: (_target: Node, r: number) => {
+                        const p = this.node.position;
+                        this.node.setPosition(startX + Math.sin(r * Math.PI * 3) * 30, p.y, 0);
+                    },
+                })
+                .start();
+
+            tween(opacity)
+                .to(1.5, { opacity: 0 })
+                .call(() => this.node.destroy())
+                .start();
+        });
+
+        setTimeout(() => {
+            const canvasUI = find('Canvas-UI');
+            if (canvasUI) {
+                const ds = canvasUI.getComponent('DeathScreen') as any;
+                if (ds) ds.show(killer);
+            }
+        }, 2000);
     }
 }

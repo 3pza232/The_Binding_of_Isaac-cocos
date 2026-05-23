@@ -22,4 +22,16 @@ export class CollectiblePool {
     static availableCount(allNames: string[]): number {
         return allNames.filter(n => !CollectiblePool._collected.has(n)).length;
     }
+
+    static reset(): void {
+        CollectiblePool._collected.clear();
+    }
+
+    static getCollected(): string[] {
+        return [...CollectiblePool._collected];
+    }
+
+    static restore(collected: string[]): void {
+        CollectiblePool._collected = new Set(collected);
+    }
 }

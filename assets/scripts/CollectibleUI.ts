@@ -11,6 +11,7 @@ export class CollectibleUI extends Component {
 
     private _sprites: Sprite[] = [];
     private _queue: SpriteFrame[] = [];
+    private _itemNames: string[] = [];
 
     onLoad(): void {
         CollectibleUI.instance = this;
@@ -30,11 +31,32 @@ export class CollectibleUI extends Component {
         }
     }
 
-    addCollectible(sf: SpriteFrame): void {
+    addCollectible(sf: SpriteFrame, itemName: string): void {
         if (this._queue.length >= CollectibleUI.MAX_SLOTS) {
             this._queue.shift();
+            this._itemNames.shift();
         }
         this._queue.push(sf);
+        this._itemNames.push(itemName);
+        this._refreshUI();
+    }
+
+    /** 存档用：获取藏品栏名字队列 */
+    getItemNames(): string[] {
+        return [...this._itemNames];
+    }
+
+    /** 读档用：从名字队列恢复，需传入 name→SpriteFrame 映射 */
+    restoreFromNames(names: string[], sfMap: Map<string, SpriteFrame>): void {
+        this._queue = [];
+        this._itemNames = [];
+        for (const name of names) {
+            const sf = sfMap.get(name);
+            if (sf) {
+                this._queue.push(sf);
+                this._itemNames.push(name);
+            }
+        }
         this._refreshUI();
     }
 

@@ -58,6 +58,10 @@ export class Head extends Component {
 
     private static _heldPressTimes = new Map<KeyCode, number>();
 
+    static resetKeys(): void {
+        Head._heldPressTimes.clear();
+    }
+
     // ── 内部引用 ──
 
     private _headNode: Node = null!;

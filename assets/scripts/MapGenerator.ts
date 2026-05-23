@@ -1,7 +1,15 @@
 import { _decorator, Component, Node, Prefab, instantiate, TiledMap, TiledMapAsset } from "cc";
-import { RoomType } from "./Room";
+import { Room, RoomType } from "./Room";
 import { DoorController } from "./DoorController";
 import { CollectiblePool } from "./CollectiblePool";
+import { PlayerHealth } from "./PlayerHealth";
+import { Shoot } from "./Shoot";
+import { Body } from "./Body";
+import { GameStats } from "./GameStats";
+import { GameSave, SaveData } from "./GameSave";
+import { Head } from "./Head";
+import { CollectibleUI } from "./CollectibleUI";
+import { BossIntroManager } from "./BossIntroManager";
 
 const { ccclass, property } = _decorator;
 
@@ -80,7 +88,141 @@ export class MapGenerator extends Component {
     // ── 主流程 ──
 
     start(): void {
-        this._generate();
+        const saved = GameSave.shouldContinue ? GameSave.load() : null;
+        GameSave.clear();
+        Head.resetKeys();
+
+        if (saved) {
+            this._restoreStats(saved);
+            CollectiblePool.restore(saved.collectedPool);
+            BossIntroManager.restoreClearedRooms(saved.bossIntroShown);
+            this._loadFromSave(saved);
+        } else {
+            PlayerHealth.resetHp(6);
+            Body.moveSpeed = -1;
+            Shoot.reset();
+            GameStats.reset();
+            CollectiblePool.reset();
+            this._generate();
+        }
+    }
+
+    private _restoreStats(data: SaveData): void {
+        const s = data.stats;
+        PlayerHealth.restoreHp(s.hp, s.maxHp);
+        Body.moveSpeed = s.moveSpeed;
+        Shoot.reset();
+        Shoot.tearDamage = s.tearDamage;
+        Shoot.damageMul = s.damageMul;
+        Shoot.range = s.range;
+        Shoot.tearSpeed = s.tearSpeed;
+        Shoot.fireRate = s.fireRate;
+        Shoot.homingEnabled = s.homingEnabled;
+        GameStats.restore(s.keys, s.coins);
+    }
+
+    private _loadFromSave(data: SaveData): void {
+        const grid = new Map<string, RoomData>();
+        const sfMap = this._buildCollectibleSfMap();
+        const roomMap = new Map<string, any>(); // key → Room 组件（用于 step 4）
+
+        // 1. 实例化全部房间 + 设类型/地图/位置
+        for (const rd of data.rooms) {
+            const node = instantiate(this.roomPrefab);
+            node.setPosition(rd.x * ROOM_SPACING_X, rd.y * ROOM_SPACING_Y, 0);
+            const room = node.getComponent(Room);
+            if (room) room.roomType = rd.type;
+            const tm = node.getComponent(TiledMap);
+            if (tm) tm.tmxAsset = this._pickTmx(rd.type);
+            const rdData: RoomData = { x: rd.x, y: rd.y, type: rd.type, node, links: new Set(rd.links) };
+            grid.set(rd.key, rdData);
+            roomMap.set(rd.key, room);
+        }
+
+        // 2. 连门：激活有 links 的门，设 targetRoom / unlocked / requiresKey
+        for (const rd of data.rooms) {
+            const dataA = grid.get(rd.key)!;
+            const doorContainer = dataA.node!.getChildByName('Door');
+            if (!doorContainer) continue;
+            for (const doorNode of doorContainer.children) {
+                const dc = doorNode.getComponent(DoorController);
+                if (!dc) continue;
+                const dir = this._getDoorDir(doorNode);
+                if (!dir) continue;
+                const [dx, dy] = DIR_VEC[dir];
+                const nk = this._key(rd.x + dx, rd.y + dy);
+                const target = grid.get(nk);
+                if (target && rd.links.includes(nk)) {
+                    dc.targetRoom = target.node;
+                    dc.requiresKey = target.type === RoomType.TREASURE || target.type === RoomType.SHOP;
+                    const linkIdx = rd.links.indexOf(nk);
+                    if (linkIdx >= 0 && linkIdx < rd.doorsUnlocked.length) {
+                        dc.unlocked = rd.doorsUnlocked[linkIdx];
+                    }
+                    doorNode.active = true;
+                } else {
+                    doorNode.active = false;
+                }
+            }
+        }
+
+        // 3. 挂场景 → 触发 onLoad，但 start() 是异步批处理的，此时 _doors / 面板引用尚未就绪
+        for (const dataB of grid.values()) this.node.addChild(dataB.node!);
+
+        // 4-8 步延迟到下一帧：等 Room.start / DoorController.start 全部执行完毕后才能操作门
+        this.scheduleOnce(() => {
+            // 4. 仅置 cleared / itemTaken 标记（不动门——门由 enter 统一管）
+            for (const rd of data.rooms) {
+                const room = roomMap.get(rd.key);
+                if (!room) continue;
+                (room as any)._cleared = !!rd.cleared;
+                if (rd.itemTaken) room.markItemTaken();
+            }
+
+            // 5. 刷实体（cleared → 不刷怪；itemTaken → 不刷藏品）
+            for (const [key, dataB] of grid) {
+                const mgr = dataB.node!.getChildByName('RoomManager');
+                if (!mgr) continue;
+                if (key === data.playerRoom) this._spawnIsaac(mgr);
+                const rd = data.rooms.find(r => r.key === key);
+                if (dataB.type === RoomType.MONSTER && !rd?.cleared) this._spawnMonsters(mgr);
+                if (dataB.type === RoomType.BOSS && !rd?.cleared) this._spawnBoss(mgr);
+                if (dataB.type === RoomType.TREASURE && !rd?.itemTaken) this._spawnCollectible(mgr, this.collectiblePrefabs.map(p => p.name));
+            }
+
+            // 6. 仅玩家房激活（enter = 门开/关 + _isActive + Boss入场）
+            // 其余房间的门状态在玩家走进时由 _doTeleport → enter() 自然触发
+            let playerRoomNode: Node | null = null;
+            for (const [key, dataB] of grid) {
+                if (key === data.playerRoom) {
+                    const room = roomMap.get(key);
+                    if (room) room.enter();
+                    playerRoomNode = dataB.node!;
+                }
+            }
+
+            // 7. 移摄像机
+            if (playerRoomNode) {
+                const cam = this.node.parent?.getChildByName('Camera');
+                (cam?.getComponent('CameraController') as any)?.moveToRoom?.(playerRoomNode);
+            }
+
+            // 8. 恢复藏品 UI
+            const cui = this.node.parent?.parent?.getChildByName('Canvas-UI')?.getChildByName('Collectible_UI')?.getComponent(CollectibleUI);
+            if (cui && data.uiItemNames.length > 0) cui.restoreFromNames(data.uiItemNames, sfMap);
+        }, 0);
+    }
+
+    /** 构建 name → SpriteFrame 映射（实例化藏品预制体取帧） */
+    private _buildCollectibleSfMap(): Map<string, SpriteFrame> {
+        const m = new Map<string, SpriteFrame>();
+        for (const p of this.collectiblePrefabs) {
+            const node = instantiate(p);
+            const sp = node.getComponent('cc.Sprite') as any;
+            if (sp?.spriteFrame) m.set(p.name, sp.spriteFrame);
+            node.destroy();
+        }
+        return m;
     }
 
     private _generate(): void {

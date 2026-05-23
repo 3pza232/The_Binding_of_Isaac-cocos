@@ -1,6 +1,6 @@
 import {
     _decorator, Component, Node, Collider2D, Contact2DType,
-    AudioClip, AudioSource, tween, v3, Sprite,
+    AudioClip, AudioSource, tween, v3, Sprite, find,
 } from 'cc';
 import { CollectibleUI } from './CollectibleUI';
 import { CollectiblePool } from './CollectiblePool';
@@ -80,10 +80,19 @@ export abstract class ItemBase extends Component {
 
         const displaySprite = this.getComponent(Sprite);
         if (displaySprite && displaySprite.spriteFrame) {
-            CollectibleUI.instance?.addCollectible(displaySprite.spriteFrame);
+            const cui = CollectibleUI.instance ?? find('Canvas-UI/Collectible_UI')?.getComponent(CollectibleUI);
+            cui?.addCollectible(displaySprite.spriteFrame, this.node.name);
         }
 
         CollectiblePool.markCollected(this.node.name);
+
+        // 通知所在房间：藏品已被拾取
+        let roomNode = this.node.parent;
+        while (roomNode) {
+            const room = roomNode.getComponent('Room') as any;
+            if (room?.markItemTaken) { room.markItemTaken(); break; }
+            roomNode = roomNode.parent;
+        }
 
         if (this.pickupSound) {
             const src = this.node.getComponent(AudioSource) || this.node.addComponent(AudioSource);

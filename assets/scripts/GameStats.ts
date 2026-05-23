@@ -25,4 +25,9 @@ export class GameStats {
         GameStats._keys = 2;
         GameStats._coins = 0;
     }
+
+    static restore(keys: number, coins: number): void {
+        GameStats._keys = keys;
+        GameStats._coins = coins;
+    }
 }

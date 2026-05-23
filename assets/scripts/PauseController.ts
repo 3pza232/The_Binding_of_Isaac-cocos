@@ -1,4 +1,6 @@
 import { _decorator, Component, Node, input, Input, EventKeyboard, KeyCode, director } from 'cc';
+import { GameSave } from './GameSave';
+import { SaveCollector } from './SaveCollector';
 
 const { ccclass, property } = _decorator;
 
@@ -10,12 +12,16 @@ export class PauseController extends Component {
 
     private _arrowContinue: Node = null!;
     private _arrowQuit: Node = null!;
+    private _deathUI: Node | null = null;
     private _paused = false;
     private _selectedContinue = true;
+
+    private static _lastLoadTime = 0;
 
     onLoad(): void {
         this._arrowContinue = this.pauseUI.getChildByName('Arrow_Continue')!;
         this._arrowQuit = this.pauseUI.getChildByName('Arrow_Quit')!;
+        this._deathUI = this.node.getChildByName('Death_UI');
     }
 
     start(): void {
@@ -27,6 +33,7 @@ export class PauseController extends Component {
     }
 
     private _onKey(e: EventKeyboard): void {
+        if (this._deathUI?.active) return;
         if (this._paused) {
             this._handlePauseInput(e.keyCode);
             return;
@@ -51,8 +58,12 @@ export class PauseController extends Component {
                 if (this._selectedContinue) {
                     this._hide();
                 } else {
+                    if (Date.now() - PauseController._lastLoadTime < 1000) return;
+                    PauseController._lastLoadTime = Date.now();
+                    const data = SaveCollector.collect();
+                    GameSave.save(data);
                     director.resume();
-                    director.loadScene('start');
+                    director.loadScene('menu');
                 }
                 break;
         }

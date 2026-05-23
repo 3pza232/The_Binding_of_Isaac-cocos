@@ -20,21 +20,20 @@ export class BossIntroManager extends Component {
         this._nameLabel = this.bossFightUI.getChildByName('bossname')!.getComponent(Sprite)!;
     }
 
-    /** 当前 Boss 房已被清除（死亡后重进不再弹） */
-    private static _clearedRooms = new Set<string>();
-
-    static markRoomCleared(roomUuid: string): void {
-        BossIntroManager._clearedRooms.add(roomUuid);
+    /** 当前 Boss 房已被清除（死亡后重进不再弹），用 grid key 标识 */
+    static _clearedRooms = new Set<string>();
+    static restoreClearedRooms(keys: string[]): void {
+        BossIntroManager._clearedRooms = new Set(keys);
     }
 
     /** 从 Boss 节点提取 portrait/bossname 的 SpriteFrame 并播放入场 */
-    static show(bossNode: Node, roomUuid: string): void {
+    static show(bossNode: Node, roomGridKey: string): void {
         const self = BossIntroManager.instance;
         if (!self || self._shown) return;
-        if (BossIntroManager._clearedRooms.has(roomUuid)) return;
+        if (BossIntroManager._clearedRooms.has(roomGridKey)) return;
 
         self._shown = true;
-        BossIntroManager._clearedRooms.add(roomUuid);
+        BossIntroManager._clearedRooms.add(roomGridKey);
 
         const pNode = bossNode.getChildByName('portrait');
         const nNode = bossNode.getChildByName('bossname');
