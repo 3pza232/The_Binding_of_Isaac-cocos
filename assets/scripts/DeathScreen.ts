@@ -1,7 +1,7 @@
 import {
     _decorator, Component, Node, Sprite, input, Input, EventKeyboard, KeyCode, director,
 } from 'cc';
-import { GameSave } from './GameSave';
+import { GameState } from './GameState';
 
 const { ccclass, property } = _decorator;
 
@@ -54,7 +54,7 @@ export class DeathScreen extends Component {
         if (e.keyCode === KeyCode.ESCAPE || e.keyCode === KeyCode.ENTER || e.keyCode === KeyCode.SPACE) {
             if (Date.now() - DeathScreen._lastLoadTime < 1000) return;
             DeathScreen._lastLoadTime = Date.now();
-            GameSave.delete();
+            GameState.i.deleteSave();
             director.resume();
             director.loadScene('menu');
         }

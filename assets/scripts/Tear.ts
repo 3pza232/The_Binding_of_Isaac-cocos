@@ -1,27 +1,16 @@
 import {
-    _decorator,
-    Component,
-    Node,
-    RigidBody2D,
-    Animation,
-    Collider2D,
-    Contact2DType,
-    AudioClip,
-    AudioSource,
-    v2,
-    Vec3,
-    Vec2,
-} from "cc";
+    _decorator, Component, Node, RigidBody2D, Animation,
+    Collider2D, Contact2DType, AudioClip, AudioSource, v2, Vec3, Vec2,
+} from 'cc';
+import { GROUP } from './Constants';
 
 const { ccclass } = _decorator;
 
-/** 泪弹飞行状态 */
-type TearState = "fly" | "descend" | "break";
+type TearState = 'fly' | 'descend' | 'break';
 
-/** 泪弹会因碰撞而破裂的物理分组 */
 const BREAK_GROUPS: Record<number, true> = {
-    8: true, // ENEMY
-    16: true, // ENVIRONMENT（墙）
+    [GROUP.MONSTER]: true,
+    [GROUP.WALL]: true,
 };
 
 /**

@@ -1,5 +1,5 @@
 import { _decorator, Component, Node, input, Input, EventKeyboard, KeyCode, director } from 'cc';
-import { GameSave } from './GameSave';
+import { GameState } from './GameState';
 import { SaveCollector } from './SaveCollector';
 
 const { ccclass, property } = _decorator;
@@ -60,8 +60,7 @@ export class PauseController extends Component {
                 } else {
                     if (Date.now() - PauseController._lastLoadTime < 1000) return;
                     PauseController._lastLoadTime = Date.now();
-                    const data = SaveCollector.collect();
-                    GameSave.save(data);
+                    GameState.i.save(SaveCollector.collect());
                     director.resume();
                     director.loadScene('menu');
                 }

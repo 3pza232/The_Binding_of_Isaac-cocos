@@ -1,5 +1,5 @@
 import { _decorator, Component, Sprite, SpriteFrame } from 'cc';
-import { PlayerHealth } from './PlayerHealth';
+import { GameState } from './GameState';
 
 const { ccclass, property } = _decorator;
 
@@ -35,8 +35,9 @@ export class HeartUI extends Component {
     }
 
     update(): void {
-        const hp = PlayerHealth.hp;
-        const maxHp = PlayerHealth.maxHp;
+        const gs = GameState.i;
+        const hp = gs.hp;
+        const maxHp = gs.maxHp;
         if (hp !== this._lastHp || maxHp !== this._lastMaxHp) {
             this._lastHp = hp;
             this._lastMaxHp = maxHp;

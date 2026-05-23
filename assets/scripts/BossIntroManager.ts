@@ -1,4 +1,5 @@
 import { _decorator, Component, Node, Sprite, director } from 'cc';
+import { GameState } from './GameState';
 
 const { ccclass, property } = _decorator;
 
@@ -20,20 +21,14 @@ export class BossIntroManager extends Component {
         this._nameLabel = this.bossFightUI.getChildByName('bossname')!.getComponent(Sprite)!;
     }
 
-    /** 当前 Boss 房已被清除（死亡后重进不再弹），用 grid key 标识 */
-    static _clearedRooms = new Set<string>();
-    static restoreClearedRooms(keys: string[]): void {
-        BossIntroManager._clearedRooms = new Set(keys);
-    }
-
-    /** 从 Boss 节点提取 portrait/bossname 的 SpriteFrame 并播放入场 */
-    static show(bossNode: Node, roomGridKey: string): void {
+    /** 播放入场动画，gridKey 用于去重 */
+    static show(bossNode: Node, gridKey: string): void {
         const self = BossIntroManager.instance;
         if (!self || self._shown) return;
-        if (BossIntroManager._clearedRooms.has(roomGridKey)) return;
+        if (GameState.i.bossIntroDone.has(gridKey)) return;
 
         self._shown = true;
-        BossIntroManager._clearedRooms.add(roomGridKey);
+        GameState.i.bossIntroDone.add(gridKey);
 
         const pNode = bossNode.getChildByName('portrait');
         const nNode = bossNode.getChildByName('bossname');

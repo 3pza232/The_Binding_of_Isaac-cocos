@@ -1,12 +1,9 @@
 import { _decorator, Component, Label, Enum } from 'cc';
-import { GameStats } from './GameStats';
+import { GameState } from './GameState';
 
 const { ccclass, property } = _decorator;
 
-enum CurrencyType {
-    KEY,
-    COIN,
-}
+enum CurrencyType { KEY, COIN }
 
 @ccclass('CurrencyDisplay')
 export class CurrencyDisplay extends Component {
@@ -21,7 +18,8 @@ export class CurrencyDisplay extends Component {
     }
 
     update(): void {
-        const val = this.type === CurrencyType.KEY ? GameStats.keys : GameStats.coins;
+        const gs = GameState.i;
+        const val = this.type === CurrencyType.KEY ? gs.keys : gs.coins;
         this._label.string = String(val);
     }
 }

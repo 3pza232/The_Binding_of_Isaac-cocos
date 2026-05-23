@@ -1,34 +1,33 @@
 import {
     _decorator, Component, Node, UITransform, Sprite, Collider2D,
     Contact2DType, Prefab, instantiate, find, tween, v3, Vec3, Tween,
-} from "cc";
-import { RoomType } from "./Room";
-import { GameStats } from "./GameStats";
+} from 'cc';
+import { RoomType } from './Room';
+import { GameState } from './GameState';
 
 const { ccclass, property } = _decorator;
 
 type DoorStyle = 'normal' | 'treasure' | 'shop' | 'boss';
 
-/** Door 节点上所有可能的子节点名（用于初始化时统一隐藏） */
 const ALL_VARIANTS = [
     'Black', 'LeftPanel', 'RightPanel', 'Frame',
     'LeftPanel_Boss', 'RightPanel_Boss', 'Frame_Boss', 'Frame_Boss_Eyes', 'Frame_Boss_Light',
     'RightPanel_Key', 'Frame_Treasure', 'Frame_Shop',
 ];
 
-@ccclass("DoorController")
+@ccclass('DoorController')
 export class DoorController extends Component {
 
-    @property({ displayName: "动画时长(秒)" })
+    @property({ displayName: '动画时长(秒)' })
     animationDuration = 0.5;
 
-    @property({ type: Node, displayName: "目标房间" })
+    @property({ type: Node, displayName: '目标房间' })
     targetRoom: Node | null = null;
 
-    @property({ type: Prefab, displayName: "玩家" })
+    @property({ type: Prefab, displayName: '玩家' })
     isaacPrefab: Prefab | null = null;
 
-    @property({ displayName: "门边生成距离(px)" })
+    @property({ displayName: '门边生成距离(px)' })
     spawnDistance = 50;
 
     @property({ displayName: '需要钥匙' })
@@ -36,8 +35,6 @@ export class DoorController extends Component {
 
     get unlocked(): boolean { return this._unlocked; }
     set unlocked(v: boolean) { this._unlocked = v; }
-
-    // ── 内部状态 ──
 
     private _doorStyle: DoorStyle = 'normal';
     private _unlocked = false;
@@ -54,6 +51,8 @@ export class DoorController extends Component {
 
     private _eyesNode: Node | null = null;
     private _lightNode: Node | null = null;
+
+    private static _lastTeleportTime = 0;
 
     // ── 生命周期 ──
 
@@ -75,23 +74,21 @@ export class DoorController extends Component {
         this._syncBossVisuals();
     }
 
-    // ── Public API ──
-
     open(): void {
         if (this.requiresKey && !this._unlocked) return;
         this._animate(true);
     }
 
     close(): void {
-        if (this.requiresKey && this._unlocked) return; // 已解锁钥匙门永不关闭
+        if (this.requiresKey && this._unlocked) return;
         this._animate(false);
     }
 
-    // ── 门类型判断：自身房间或目标房间中任一是特殊类型即采用对应样式 ──
+    // ── 门类型判断 ──
 
     private _determineStyle(): void {
-        const ownType = this._getOwnRoomType();
-        const targetType = this._getRoomType(this.targetRoom);
+        const ownType = _roomType(this.node.parent);
+        const targetType = _roomType(this.targetRoom);
 
         if (targetType === RoomType.BOSS || ownType === RoomType.BOSS) {
             this._doorStyle = 'boss';
@@ -102,23 +99,6 @@ export class DoorController extends Component {
         }
     }
 
-    private _getRoomType(node: Node | null): number | null {
-        if (!node) return null;
-        const room = node.getComponent('Room') as any;
-        return room?.roomType ?? null;
-    }
-
-    private _getOwnRoomType(): number | null {
-        let node = this.node.parent;
-        while (node) {
-            const room = node.getComponent('Room') as any;
-            if (room) return room.roomType;
-            node = node.parent;
-        }
-        return null;
-    }
-
-    /** 当前所在房间是否安全（无战斗） */
     private _isRoomSafe(): boolean {
         let node = this.node.parent;
         while (node) {
@@ -131,7 +111,7 @@ export class DoorController extends Component {
         return true;
     }
 
-    // ── 初始化视觉：隐藏全部变体 → 按风格激活对应子节点 ──
+    // ── 初始化视觉 ──
 
     private _initVisuals(): void {
         for (const name of ALL_VARIANTS) {
@@ -181,7 +161,7 @@ export class DoorController extends Component {
         }
     }
 
-    // ── 动画：门板向门轴方向压缩/展开 ──
+    // ── 动画 ──
 
     private _animate(open: boolean): void {
         if (!this._leftPanel || !this._rightPanel) return;
@@ -195,7 +175,7 @@ export class DoorController extends Component {
         Tween.stopAllByTarget(this._rightPanel);
 
         const dur = this.animationDuration;
-        const easing = "sineInOut";
+        const easing = 'sineInOut';
 
         if (open) {
             if (!this._anchorsApplied) {
@@ -208,39 +188,20 @@ export class DoorController extends Component {
             this._rightPanel.getComponent(Sprite)!.sizeMode = Sprite.SizeMode.CUSTOM;
 
             let done = 0;
-            const onDone = () => {
-                done++;
-                if (done >= 2) {
-                    this._isAnimating = false;
-                    this._canTeleport = true;
-                }
-            };
+            const onDone = () => { done++; if (done >= 2) this._isAnimating = false; this._canTeleport = true; };
 
             tween(this._leftPanel.getComponent(UITransform)!)
-                .to(dur, { width: 0 }, { easing })
-                .call(onDone)
-                .start();
+                .to(dur, { width: 0 }, { easing }).call(onDone).start();
             tween(this._rightPanel.getComponent(UITransform)!)
-                .to(dur, { width: 0 }, { easing })
-                .call(onDone)
-                .start();
+                .to(dur, { width: 0 }, { easing }).call(onDone).start();
         } else {
             let done = 0;
-            const onDone = () => {
-                done++;
-                if (done >= 2) {
-                    this._isAnimating = false;
-                }
-            };
+            const onDone = () => { done++; if (done >= 2) this._isAnimating = false; };
 
             tween(this._leftPanel.getComponent(UITransform)!)
-                .to(dur, { width: this._leftOrigW }, { easing })
-                .call(onDone)
-                .start();
+                .to(dur, { width: this._leftOrigW }, { easing }).call(onDone).start();
             tween(this._rightPanel.getComponent(UITransform)!)
-                .to(dur, { width: this._rightOrigW }, { easing })
-                .call(onDone)
-                .start();
+                .to(dur, { width: this._rightOrigW }, { easing }).call(onDone).start();
         }
     }
 
@@ -254,16 +215,16 @@ export class DoorController extends Component {
         );
     }
 
-    // ── Boss 视觉：Eyes 随存活/死亡切换，Light 随开门切换 ──
+    // ── Boss 视觉 ──
 
     private _findBossRoom(): any {
         if (this.targetRoom) {
-            const r = this.targetRoom.getComponent("Room") as any;
+            const r = this.targetRoom.getComponent('Room') as any;
             if (r && r.roomType === RoomType.BOSS) return r;
         }
         let node = this.node.parent;
         while (node) {
-            const r = node.getComponent("Room") as any;
+            const r = node.getComponent('Room') as any;
             if (r && r.roomType === RoomType.BOSS) return r;
             node = node.parent;
         }
@@ -282,17 +243,14 @@ export class DoorController extends Component {
 
     // ── 传送 ──
 
-    private static _lastTeleportTime = 0;
-
     private _onContact(_self: Collider2D, other: Collider2D): void {
         if (this._pendingIsaac || !this.targetRoom || !this.isaacPrefab) return;
-        if (other.group !== 4) return; // PLAYER group
+        if (other.group !== 4) return; // PLAYER
         if (Date.now() - DoorController._lastTeleportTime < 500) return;
 
-        // 钥匙门：战斗中禁止开锁
         if (this.requiresKey && !this._unlocked) {
             if (!this._isRoomSafe()) return;
-            if (!GameStats.spendKey(1)) return;
+            if (!GameState.i.spendKey(1)) return;
             this._unlocked = true;
             this._animate(true);
             DoorController._lastTeleportTime = Date.now();
@@ -306,19 +264,16 @@ export class DoorController extends Component {
     }
 
     private _doTeleport(oldIsaac: Node): void {
-        const targetRoomComp = this.targetRoom!.getComponent("Room") as any;
-        if (!targetRoomComp) {
-            console.warn("[DoorController] 目标房间缺少 Room 组件");
-            return;
-        }
+        const targetRoomComp = this.targetRoom!.getComponent('Room') as any;
+        if (!targetRoomComp) return;
 
         const oldRoomNode = oldIsaac.parent?.parent;
-        const oldRoomComp = oldRoomNode?.getComponent?.("Room") as any;
-        if (oldRoomComp && oldRoomComp.leave) oldRoomComp.leave();
+        const oldRoomComp = oldRoomNode?.getComponent?.('Room') as any;
+        if (oldRoomComp?.leave) oldRoomComp.leave();
 
         oldIsaac.destroy();
 
-        const roomMgr = this.targetRoom!.getChildByName("RoomManager");
+        const roomMgr = this.targetRoom!.getChildByName('RoomManager');
         if (!roomMgr) return;
 
         const newIsaac = instantiate(this.isaacPrefab!);
@@ -338,7 +293,7 @@ export class DoorController extends Component {
 
     private _findEntryDoor(roomNode: Node, prevRoomNode: Node | null | undefined): Node | null {
         if (!prevRoomNode) return null;
-        const doorContainer = roomNode.getChildByName("Door");
+        const doorContainer = roomNode.getChildByName('Door');
         if (!doorContainer) return null;
         for (const doorNode of doorContainer.children) {
             const dc = doorNode.getComponent(DoorController);
@@ -357,4 +312,10 @@ export class DoorController extends Component {
             return v3(p.x, p.y + (p.y > 0 ? -d : d), 0);
         }
     }
+}
+
+function _roomType(node: Node | null): number | null {
+    if (!node) return null;
+    const room = node.getComponent('Room') as any;
+    return room?.roomType ?? null;
 }

@@ -3,15 +3,13 @@ import {
     AudioClip, AudioSource, Collider2D, Contact2DType,
     RigidBody2D, UIOpacity, tween, v2, v3, Color, find,
 } from 'cc';
+import { GameState } from './GameState';
+import { GROUP } from './Constants';
 
 const { ccclass, property } = _decorator;
 
-const MONSTER_GROUP = 8;
-
 @ccclass('PlayerHealth')
 export class PlayerHealth extends Component {
-
-    // ── 公开属性 ──
 
     @property({ displayName: '最大血量' })
     maxHp = 6;
@@ -30,17 +28,6 @@ export class PlayerHealth extends Component {
 
     @property({ displayName: '音效音量', range: [0, 1, 0.05], slide: true })
     sfxVolume = 1;
-
-    // ── 静态全局 HP（跨传送持久）──
-
-    private static _hp = -1;
-    private static _maxHp = 6;
-
-    static get hp(): number { return PlayerHealth._hp; }
-    static get maxHp(): number { return PlayerHealth._maxHp; }
-    static resetHp(max: number): void { PlayerHealth._hp = PlayerHealth._maxHp = max; }
-    static setMaxHp(max: number): void { PlayerHealth._maxHp = Math.min(max, 16); }
-    static restoreHp(hp: number, maxHp: number): void { PlayerHealth._hp = hp; PlayerHealth._maxHp = maxHp; }
 
     // ── 实例状态 ──
 
@@ -62,7 +49,6 @@ export class PlayerHealth extends Component {
     private _idleV: SpriteFrame | null = null;
     private _killerNode: Node | null = null;
 
-    get currentHp(): number { return PlayerHealth._hp; }
     get alive(): boolean { return this._alive; }
     get isStunned(): boolean { return this._stunTimer > 0 || this._pushTimer > 0; }
     get isInvulnerable(): boolean { return this._invulnTimer > 0; }
@@ -70,9 +56,10 @@ export class PlayerHealth extends Component {
     // ── 生命周期 ──
 
     onLoad(): void {
-        if (PlayerHealth._hp < 0) {
-            PlayerHealth._hp = this.maxHp;
-            PlayerHealth._maxHp = this.maxHp;
+        const gs = GameState.i;
+        if (gs.hp <= 0) {
+            gs.hp = this.maxHp;
+            gs.maxHp = this.maxHp;
         }
 
         this._bodyNode = this.node.getChildByName('Body')!;
@@ -95,7 +82,7 @@ export class PlayerHealth extends Component {
             collider.on(Contact2DType.BEGIN_CONTACT, this._onContact, this);
         }
 
-        if (PlayerHealth._hp <= 0) {
+        if (gs.hp <= 0) {
             this._alive = false;
             this._headNode.active = false;
         }
@@ -136,22 +123,16 @@ export class PlayerHealth extends Component {
         }
     }
 
-    /** 外部推力 */
     applyPush(vx: number, vy: number, duration = 0.15): void {
         this._rigidBody.linearVelocity = v2(vx, vy);
         this._pushTimer = duration;
-    }
-
-    /** 治疗 */
-    heal(amount: number): void {
-        PlayerHealth._hp = Math.min(PlayerHealth._hp + amount, PlayerHealth._maxHp);
     }
 
     // ── 碰撞 ──
 
     private _onContact(_self: Collider2D, other: Collider2D): void {
         if (!this._alive || this._invulnTimer > 0) return;
-        if (other.group !== MONSTER_GROUP) return;
+        if (other.group !== GROUP.MONSTER) return;
 
         const monster = other.node.getComponent('Monster') as any;
         if (!monster || !monster.alive) return;
@@ -160,10 +141,8 @@ export class PlayerHealth extends Component {
         this._takeDamage();
     }
 
-    // ── 受击 ──
-
     private _takeDamage(): void {
-        PlayerHealth._hp--;
+        GameState.i.takeDamage(1);
         this._invulnTimer = this.invulnDuration;
         this._stunTimer = this.stunDuration;
         this._flickerTimer = 0;
@@ -176,7 +155,7 @@ export class PlayerHealth extends Component {
             this._audioSrc.playOneShot(clip, this.sfxVolume);
         }
 
-        if (PlayerHealth._hp <= 0) this._die();
+        if (!GameState.i.alive) this._die();
     }
 
     private _setBodyIdleFrame(): void {
@@ -206,7 +185,6 @@ export class PlayerHealth extends Component {
 
         const killer = this._killerNode;
 
-        // 物理回调内禁止直接改刚体，延迟到下一帧
         this.scheduleOnce(() => {
             this._rigidBody.enabled = false;
             this._rigidBody.linearVelocity = v2(0, 0);

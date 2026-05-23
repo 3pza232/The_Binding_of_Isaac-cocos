@@ -3,11 +3,10 @@ import {
     AudioClip, AudioSource, tween, v3, Sprite, find,
 } from 'cc';
 import { CollectibleUI } from './CollectibleUI';
-import { CollectiblePool } from './CollectiblePool';
+import { GameState } from './GameState';
+import { GROUP } from './Constants';
 
 const { ccclass, property } = _decorator;
-
-const PLAYER_GROUP = 4;
 
 @ccclass('ItemBase')
 export abstract class ItemBase extends Component {
@@ -18,15 +17,11 @@ export abstract class ItemBase extends Component {
     @property({ displayName: '音效音量', range: [0, 1, 0.05], slide: true })
     sfxVolume = 1;
 
-    // ── 浮动动画 ──
-
     @property({ displayName: '浮动高度(px)' })
     floatAmplitude = 5;
 
     @property({ displayName: '浮动周期(秒)' })
     floatPeriod = 1.5;
-
-    // ── 鼓动动画 ──
 
     @property({ displayName: '鼓动强度' })
     pulseStrength = 0.06;
@@ -68,25 +63,22 @@ export abstract class ItemBase extends Component {
             .start();
     }
 
-    // ── 拾取 ──
-
     private _pickedUp = false;
 
     private _onContact(_self: Collider2D, other: Collider2D): void {
-        if (other.group !== PLAYER_GROUP || this._pickedUp) return;
+        if (other.group !== GROUP.PLAYER || this._pickedUp) return;
         this._pickedUp = true;
 
         this.onPickup(other.node);
 
         const displaySprite = this.getComponent(Sprite);
         if (displaySprite && displaySprite.spriteFrame) {
-            const cui = CollectibleUI.instance ?? find('Canvas-UI/Collectible_UI')?.getComponent(CollectibleUI);
+            const cui = find('Canvas-UI/Collectible_UI')?.getComponent(CollectibleUI);
             cui?.addCollectible(displaySprite.spriteFrame, this.node.name);
         }
 
-        CollectiblePool.markCollected(this.node.name);
+        GameState.i.markCollected(this.node.name);
 
-        // 通知所在房间：藏品已被拾取
         let roomNode = this.node.parent;
         while (roomNode) {
             const room = roomNode.getComponent('Room') as any;

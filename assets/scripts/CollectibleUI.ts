@@ -1,22 +1,18 @@
 import { _decorator, Component, Sprite, SpriteFrame } from 'cc';
+import { MAX_COLLECTIBLE_SLOTS } from './Constants';
 
 const { ccclass } = _decorator;
 
 @ccclass('CollectibleUI')
 export class CollectibleUI extends Component {
 
-    static instance: CollectibleUI | null = null;
-
-    private static readonly MAX_SLOTS = 25;
-
     private _sprites: Sprite[] = [];
     private _queue: SpriteFrame[] = [];
     private _itemNames: string[] = [];
 
     onLoad(): void {
-        CollectibleUI.instance = this;
         this._sprites = [];
-        for (let i = 1; i <= CollectibleUI.MAX_SLOTS; i++) {
+        for (let i = 1; i <= MAX_COLLECTIBLE_SLOTS; i++) {
             const name = i < 10 ? `item_0${i}` : `item_${i}`;
             const child = this.node.getChildByName(name);
             if (child) {
@@ -25,14 +21,8 @@ export class CollectibleUI extends Component {
         }
     }
 
-    onDestroy(): void {
-        if (CollectibleUI.instance === this) {
-            CollectibleUI.instance = null;
-        }
-    }
-
     addCollectible(sf: SpriteFrame, itemName: string): void {
-        if (this._queue.length >= CollectibleUI.MAX_SLOTS) {
+        if (this._queue.length >= MAX_COLLECTIBLE_SLOTS) {
             this._queue.shift();
             this._itemNames.shift();
         }
@@ -41,12 +31,10 @@ export class CollectibleUI extends Component {
         this._refreshUI();
     }
 
-    /** 存档用：获取藏品栏名字队列 */
     getItemNames(): string[] {
         return [...this._itemNames];
     }
 
-    /** 读档用：从名字队列恢复，需传入 name→SpriteFrame 映射 */
     restoreFromNames(names: string[], sfMap: Map<string, SpriteFrame>): void {
         this._queue = [];
         this._itemNames = [];

@@ -1,122 +1,64 @@
 import {
-    _decorator,
-    Component,
-    Node,
-    Prefab,
-    instantiate,
-    AudioClip,
-    AudioSource,
-    Vec2,
-    Vec3,
-} from "cc";
-import { Head } from "./Head";
-import { Body } from "./Body";
-import { Tear } from "./Tear";
+    _decorator, Component, Node, Prefab, instantiate,
+    AudioClip, AudioSource, Vec2, Vec3,
+} from 'cc';
+import { Head } from './Head';
+import { Body } from './Body';
+import { Tear } from './Tear';
+import { GameState } from './GameState';
 
 const { ccclass, property } = _decorator;
 
-@ccclass("Shoot")
+@ccclass('Shoot')
 export class Shoot extends Component {
-    // ── 静态全局（跨传送持久，藏品可改）──
 
-    static tearDamage = -1;
-    static damageMul = -1;
-    static range = -1;
-    static tearSpeed = -1;
-    static fireRate = -1;
-    static homingEnabled = false;
-
-    static reset(): void {
-        Shoot.tearDamage = -1;
-        Shoot.damageMul = -1;
-        Shoot.range = -1;
-        Shoot.tearSpeed = -1;
-        Shoot.fireRate = -1;
-        Shoot.homingEnabled = false;
-    }
-
-    get tearDamage(): number {
-        return Shoot.tearDamage;
-    }
-    set tearDamage(v: number) {
-        Shoot.tearDamage = v;
-    }
-    get damageMultiplier(): number {
-        return Shoot.damageMul;
-    }
-    set damageMultiplier(v: number) {
-        Shoot.damageMul = v;
-    }
-    get range(): number {
-        return Shoot.range;
-    }
-    set range(v: number) {
-        Shoot.range = v;
-    }
-    get tearSpeed(): number {
-        return Shoot.tearSpeed;
-    }
-    set tearSpeed(v: number) {
-        Shoot.tearSpeed = v;
-    }
-    get fireRate(): number {
-        return Shoot.fireRate;
-    }
-    set fireRate(v: number) {
-        Shoot.fireRate = v;
-    }
-
-    // ── 属性 ──
-
-    @property({ type: Prefab, displayName: "泪弹预制体" })
+    @property({ type: Prefab, displayName: '泪弹预制体' })
     tearPrefab: Prefab = null!;
 
-    @property({ displayName: "泪弹速度" })
+    @property({ displayName: '泪弹速度' })
     private _tearSpeed = 13;
 
-    @property({ displayName: "射程" })
+    @property({ displayName: '射程' })
     private _range = 250;
 
-    @property({ displayName: "射速间隔(秒)" })
+    @property({ displayName: '射速间隔(秒)' })
     private _fireRate = 0.5;
 
-    @property({ displayName: "下降起始比例", range: [0, 1, 0.05], slide: true })
+    @property({ displayName: '下降起始比例', range: [0, 1, 0.05], slide: true })
     fallStartRatio = 0.6;
 
-    @property({ displayName: "水平下落速度" })
+    @property({ displayName: '水平下落速度' })
     fallSpeed = 5;
 
-    @property({ displayName: "水平发射偏移" })
+    @property({ displayName: '水平发射偏移' })
     spawnOffsetX = 5;
 
-    @property({ displayName: "垂直发射偏移" })
+    @property({ displayName: '垂直发射偏移' })
     spawnOffsetY = 5;
 
-    @property({ displayName: "穿墙" })
+    @property({ displayName: '穿墙' })
     piercing = false;
 
-    @property({ displayName: "甩弹比例", range: [0, 1, 0.01], slide: true })
+    @property({ displayName: '甩弹比例', range: [0, 1, 0.01], slide: true })
     momentumFactor = 0.1;
 
-    @property({ displayName: "泪弹伤害" })
+    @property({ displayName: '泪弹伤害' })
     private _tearDamage = 3.5;
 
-    @property({ displayName: "伤害倍率" })
+    @property({ displayName: '伤害倍率' })
     private _damageMul = 1.0;
 
-    @property({ type: AudioClip, displayName: "射击音效" })
+    @property({ type: AudioClip, displayName: '射击音效' })
     fireSound: AudioClip | null = null;
 
-    @property({ displayName: "射击音量", range: [0, 1, 0.05], slide: true })
+    @property({ displayName: '射击音量', range: [0, 1, 0.05], slide: true })
     fireVolume = 1;
 
-    @property({ type: AudioClip, displayName: "破裂音效" })
+    @property({ type: AudioClip, displayName: '破裂音效' })
     breakSound: AudioClip | null = null;
 
-    @property({ displayName: "破裂音量", range: [0, 1, 0.05], slide: true })
+    @property({ displayName: '破裂音量', range: [0, 1, 0.05], slide: true })
     breakVolume = 1;
-
-    // ── 缓存 ──
 
     private _head: Head = null!;
     private _body: Body = null!;
@@ -125,23 +67,20 @@ export class Shoot extends Component {
     private _spawnPos = new Vec3();
     private _cooldown = 0;
 
-    // ── 生命周期 ──
-
     onLoad(): void {
-        if (Shoot.tearDamage < 0) {
-            Shoot.tearDamage = this._tearDamage;
-            Shoot.damageMul = this._damageMul;
-            Shoot.range = this._range;
-            Shoot.tearSpeed = this._tearSpeed;
-            Shoot.fireRate = this._fireRate;
+        const gs = GameState.i;
+        if (gs.tearDamage < 0) {
+            gs.tearDamage = this._tearDamage;
+            gs.damageMul = this._damageMul;
+            gs.range = this._range;
+            gs.tearSpeed = this._tearSpeed;
+            gs.fireRate = this._fireRate;
         }
         this._head = this.node.getComponent(Head)!;
         this._body = this.node.getComponent(Body)!;
-        this._headNode = this.node.getChildByName("Head")!;
+        this._headNode = this.node.getChildByName('Head')!;
         this._audioSrc = this.node.getComponent(AudioSource) || this.node.addComponent(AudioSource);
     }
-
-    // ── 射击 ──
 
     update(dt: number): void {
         this._cooldown -= dt;
@@ -150,11 +89,12 @@ export class Shoot extends Component {
         const dir = this._head.aimDirection;
         if (!dir) return;
 
-        this._cooldown = Shoot.fireRate;
+        this._cooldown = GameState.i.fireRate;
         this._spawnTear(dir);
     }
 
     private _spawnTear(dir: Vec2): void {
+        const gs = GameState.i;
         const bv = this._body.velocity;
         const mx = bv.x * this.momentumFactor;
         const my = bv.y * this.momentumFactor;
@@ -167,17 +107,17 @@ export class Shoot extends Component {
         if (tearComp) {
             tearComp.init(
                 dir,
-                Shoot.tearSpeed,
-                Shoot.range,
+                gs.tearSpeed,
+                gs.range,
                 this.fallSpeed,
                 this.fallStartRatio,
                 this.piercing,
                 mx,
                 my,
-                Shoot.tearDamage * Shoot.damageMul,
+                gs.tearDamage * gs.damageMul,
                 this.breakSound,
                 this.breakVolume,
-                Shoot.homingEnabled
+                gs.homing,
             );
 
             if (this.fireSound) this._audioSrc.playOneShot(this.fireSound, this.fireVolume);

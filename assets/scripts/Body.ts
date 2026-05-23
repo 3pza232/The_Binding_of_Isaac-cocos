@@ -1,39 +1,23 @@
 import {
-    _decorator,
-    Component,
-    Node,
-    RigidBody2D,
-    Animation,
-    Sprite,
-    SpriteFrame,
-    input,
-    Input,
-    KeyCode,
-    EventKeyboard,
-    Vec2,
-    v2,
-} from "cc";
+    _decorator, Component, Node, RigidBody2D, Animation,
+    Sprite, SpriteFrame, input, Input, KeyCode, EventKeyboard, Vec2, v2,
+} from 'cc';
+import { GameState } from './GameState';
 
 const { ccclass, property } = _decorator;
 
-export type Facing = "right" | "left" | "down" | "up";
+export type Facing = 'right' | 'left' | 'down' | 'up';
 
-@ccclass("Body")
+@ccclass('Body')
 export class Body extends Component {
 
-    // ── 静态全局（跨传送持久）──
-    static moveSpeed = -1;
-
-    @property({ displayName: "移动速度(px/s)" })
+    @property({ displayName: '移动速度(px/s)' })
     private _moveSpeed = 5;
 
-    get moveSpeed(): number { return Body.moveSpeed; }
-    set moveSpeed(v: number) { Body.moveSpeed = v; }
-
-    @property({ type: SpriteFrame, displayName: "水平空闲帧" })
+    @property({ type: SpriteFrame, displayName: '水平空闲帧' })
     idleHorizontal: SpriteFrame | null = null;
 
-    @property({ type: SpriteFrame, displayName: "垂直空闲帧" })
+    @property({ type: SpriteFrame, displayName: '垂直空闲帧' })
     idleVertical: SpriteFrame | null = null;
 
     // ── 公开状态 ──
@@ -41,10 +25,6 @@ export class Body extends Component {
     get facing(): Facing { return this._facing; }
     get velocity(): Vec2 { return this._currentVel; }
     resetAnim(): void { this._currentAnim = null; }
-
-    // ── 静态按键 ──
-
-    private static _heldKeys = new Set<KeyCode>();
 
     // ── 内部 ──
 
@@ -54,17 +34,16 @@ export class Body extends Component {
     private _sprite: Sprite = null!;
 
     private _pressed = new Set<KeyCode>();
-    private _currentAnim: "x" | "y" | null = null;
-    private _facing: Facing = "down";
+    private _currentAnim: 'x' | 'y' | null = null;
+    private _facing: Facing = 'down';
     private _currentVel = v2(0, 0);
     private _vel2 = v2(0, 0);
 
-    // ── 生命周期 ──
-
     onLoad(): void {
-        if (Body.moveSpeed < 0) Body.moveSpeed = this._moveSpeed;
+        const gs = GameState.i;
+        if (gs.moveSpeed <= 0) gs.moveSpeed = this._moveSpeed;
 
-        this._bodyNode = this.node.getChildByName("Body")!;
+        this._bodyNode = this.node.getChildByName('Body')!;
         this._rigidBody = this.node.getComponent(RigidBody2D)!;
         this._animation = this._bodyNode.getComponent(Animation)!;
         this._sprite = this._bodyNode.getComponent(Sprite)!;
@@ -73,7 +52,7 @@ export class Body extends Component {
     start(): void {
         input.on(Input.EventType.KEY_DOWN, this._onKeyDown, this);
         input.on(Input.EventType.KEY_UP, this._onKeyUp, this);
-        this._pressed = new Set(Body._heldKeys);
+        this._pressed = new Set(GameState.i.heldMoveKeys);
     }
 
     onDestroy(): void {
@@ -85,8 +64,8 @@ export class Body extends Component {
         const health = this.node.getComponent('PlayerHealth') as any;
         if (!health?.alive || health?.isStunned) return;
 
-        const dx = this._axis("D", "A");
-        const dy = this._axis("W", "S");
+        const dx = this._axis('D', 'A');
+        const dy = this._axis('W', 'S');
         const moving = dx !== 0 || dy !== 0;
 
         if (moving) {
@@ -96,31 +75,28 @@ export class Body extends Component {
         }
     }
 
-    // ── 移动 ──
-
     private _move(dx: number, dy: number): void {
+        const speed = GameState.i.moveSpeed;
         this._vel2.set(dx, dy).normalize();
-        this._currentVel.set(this._vel2.x * Body.moveSpeed, this._vel2.y * Body.moveSpeed);
+        this._currentVel.set(this._vel2.x * speed, this._vel2.y * speed);
         this._rigidBody.linearVelocity = this._currentVel;
 
-        this._facing = dx > 0 ? "right" : dx < 0 ? "left" : dy > 0 ? "up" : "down";
+        this._facing = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'up' : 'down';
 
         if (dx !== 0) {
-            if (this._currentAnim !== "x") {
-                this._animation.play("isaac_body_x");
-                this._currentAnim = "x";
+            if (this._currentAnim !== 'x') {
+                this._animation.play('isaac_body_x');
+                this._currentAnim = 'x';
             }
-            this._bodyNode.setScale(this._facing === "right" ? 1 : -1, 1, 1);
+            this._bodyNode.setScale(this._facing === 'right' ? 1 : -1, 1, 1);
         } else {
-            if (this._currentAnim !== "y") {
-                this._animation.play("isaac_body_y");
-                this._currentAnim = "y";
+            if (this._currentAnim !== 'y') {
+                this._animation.play('isaac_body_y');
+                this._currentAnim = 'y';
             }
             this._bodyNode.setScale(1, 1, 1);
         }
     }
-
-    // ── 空闲 ──
 
     private _idle(): void {
         this._currentVel.set(0, 0);
@@ -128,13 +104,11 @@ export class Body extends Component {
         this._animation.stop();
         this._currentAnim = null;
 
-        const isH = this._facing === "right" || this._facing === "left";
+        const isH = this._facing === 'right' || this._facing === 'left';
         const sf = isH ? this.idleHorizontal : this.idleVertical;
         if (sf) this._sprite.spriteFrame = sf;
-        this._bodyNode.setScale(this._facing === "left" ? -1 : 1, 1, 1);
+        this._bodyNode.setScale(this._facing === 'left' ? -1 : 1, 1, 1);
     }
-
-    // ── 输入 ──
 
     private _axis(pos: string, neg: string): number {
         let v = 0;
@@ -146,18 +120,19 @@ export class Body extends Component {
     private _onKeyDown(e: EventKeyboard): void {
         if (this._isWASD(e.keyCode)) {
             this._pressed.add(e.keyCode);
-            Body._heldKeys.add(e.keyCode);
+            GameState.i.heldMoveKeys.add(e.keyCode);
         }
     }
 
     private _onKeyUp(e: EventKeyboard): void {
         if (this._isWASD(e.keyCode)) {
             this._pressed.delete(e.keyCode);
-            Body._heldKeys.delete(e.keyCode);
+            GameState.i.heldMoveKeys.delete(e.keyCode);
         }
     }
 
     private _isWASD(k: KeyCode): boolean {
-        return k === KeyCode.KEY_W || k === KeyCode.KEY_A || k === KeyCode.KEY_S || k === KeyCode.KEY_D;
+        return k === KeyCode.KEY_W || k === KeyCode.KEY_A
+            || k === KeyCode.KEY_S || k === KeyCode.KEY_D;
     }
 }

@@ -1,17 +1,9 @@
 import { find, director } from 'cc';
 import { Room, RoomType } from './Room';
 import { DoorController } from './DoorController';
-import { PlayerHealth } from './PlayerHealth';
-import { Body } from './Body';
-import { Shoot } from './Shoot';
-import { GameStats } from './GameStats';
 import { CollectibleUI } from './CollectibleUI';
-import { CollectiblePool } from './CollectiblePool';
-import { BossIntroManager } from './BossIntroManager';
-import { SaveData, RoomSaveData, PlayerStatsData } from './GameSave';
-
-const ROOM_SPACING_X = 900;
-const ROOM_SPACING_Y = 600;
+import { GameState, SaveData, RoomSaveData, PlayerStatsData } from './GameState';
+import { ROOM_SPACING_X, ROOM_SPACING_Y } from './Constants';
 
 export class SaveCollector {
 
@@ -19,26 +11,27 @@ export class SaveCollector {
         const gm = find('Canvas/GameManager');
         if (!gm) throw new Error('[SaveCollector] GameManager not found');
 
-        // 玩家属性
+        const gs = GameState.i;
+
         const stats: PlayerStatsData = {
-            hp: PlayerHealth.hp,
-            maxHp: PlayerHealth.maxHp,
-            moveSpeed: Body.moveSpeed,
-            tearDamage: Shoot.tearDamage,
-            damageMul: Shoot.damageMul,
-            range: Shoot.range,
-            tearSpeed: Shoot.tearSpeed,
-            fireRate: Shoot.fireRate,
-            homingEnabled: Shoot.homingEnabled,
-            keys: GameStats.keys,
-            coins: GameStats.coins,
+            hp: gs.hp,
+            maxHp: gs.maxHp,
+            moveSpeed: gs.moveSpeed,
+            tearDamage: gs.tearDamage,
+            damageMul: gs.damageMul,
+            range: gs.range,
+            tearSpeed: gs.tearSpeed,
+            fireRate: gs.fireRate,
+            homingEnabled: gs.homing,
+            keys: gs.keys,
+            coins: gs.coins,
         };
 
         // 玩家所在房间
         let playerRoom = '0,0';
-        const isaac = this._findIsaac(gm);
+        const isaac = _findIsaac(gm);
         if (isaac) {
-            const roomNode = this._findContainingRoom(isaac);
+            const roomNode = _findContainingRoom(isaac);
             if (roomNode) {
                 const gx = Math.round(roomNode.position.x / ROOM_SPACING_X);
                 const gy = Math.round(roomNode.position.y / ROOM_SPACING_Y);
@@ -83,14 +76,7 @@ export class SaveCollector {
             });
         }
 
-        // 藏品池
-        const collectedPool = CollectiblePool.getCollected();
-
-        // 藏品栏
-        const cui = find('Canvas-UI/Collectible_UI')?.getComponent(CollectibleUI);
-        const uiItemNames = cui ? cui.getItemNames() : [];
-
-        // Boss 入场 — 用 grid key 而非节点 UUID
+        // Boss 入场 — 用 grid key
         const bossIntroShown: string[] = [];
         for (const child of gm.children) {
             const room = child.getComponent(Room);
@@ -98,40 +84,44 @@ export class SaveCollector {
                 const gx = Math.round(child.position.x / ROOM_SPACING_X);
                 const gy = Math.round(child.position.y / ROOM_SPACING_Y);
                 const gridKey = `${gx},${gy}`;
-                if (BossIntroManager._clearedRooms.has(gridKey)) {
+                if (gs.bossIntroDone.has(gridKey)) {
                     bossIntroShown.push(gridKey);
                 }
             }
         }
+
+        // 藏品栏
+        const cui = find('Canvas-UI/Collectible_UI')?.getComponent(CollectibleUI);
+        const uiItemNames = cui ? cui.getItemNames() : [];
 
         return {
             scene: director.getScene()!.name,
             playerRoom,
             stats,
             rooms,
-            collectedPool,
+            collectedPool: [...gs.collected],
             uiItemNames,
             bossIntroShown,
         };
     }
+}
 
-    private static _findIsaac(gm: any): any {
-        for (const child of gm.children) {
-            const mgr = child.getChildByName('RoomManager');
-            if (mgr) {
-                const isaac = mgr.getChildByName('Isaac');
-                if (isaac) return isaac;
-            }
+function _findIsaac(gm: any): any {
+    for (const child of gm.children) {
+        const mgr = child.getChildByName('RoomManager');
+        if (mgr) {
+            const isaac = mgr.getChildByName('Isaac');
+            if (isaac) return isaac;
         }
-        return null;
     }
+    return null;
+}
 
-    private static _findContainingRoom(node: any): any {
-        let n = node.parent;
-        while (n) {
-            if (n.getComponent(Room)) return n;
-            n = n.parent;
-        }
-        return null;
+function _findContainingRoom(node: any): any {
+    let n = node.parent;
+    while (n) {
+        if (n.getComponent(Room)) return n;
+        n = n.parent;
     }
+    return null;
 }

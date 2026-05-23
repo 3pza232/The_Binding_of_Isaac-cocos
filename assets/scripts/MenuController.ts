@@ -2,7 +2,7 @@ import {
     _decorator, Component, Node, UIOpacity,
     input, Input, EventKeyboard, KeyCode, director, tween,
 } from 'cc';
-import { GameSave } from './GameSave';
+import { GameState } from './GameState';
 
 const { ccclass, property } = _decorator;
 
@@ -43,8 +43,8 @@ export class MenuController extends Component {
             case KeyCode.SPACE:
                 this._triggered = true;
                 input.off(Input.EventType.KEY_DOWN, this._onKey, this);
-                if (!this._selectedNew && GameSave.hasSave) {
-                    GameSave.shouldContinue = true;
+                if (!this._selectedNew && GameState.hasSave) {
+                    GameState.i.shouldContinue = true;
                 }
                 this._fadeAndStart();
                 break;
