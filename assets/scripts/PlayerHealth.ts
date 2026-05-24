@@ -36,7 +36,6 @@ export class PlayerHealth extends Component {
     private _stunTimer = 0;
     private _pushTimer = 0;
     private _flickerTimer = 0;
-    private _deathTimer = 0;
 
     private _bodyNode: Node = null!;
     private _headNode: Node = null!;
@@ -48,6 +47,9 @@ export class PlayerHealth extends Component {
     private _idleH: SpriteFrame | null = null;
     private _idleV: SpriteFrame | null = null;
     private _killerNode: Node | null = null;
+
+    /** 持续接触中的怪物 collider */
+    private _contacts = new Set<Collider2D>();
 
     get alive(): boolean { return this._alive; }
     get isStunned(): boolean { return this._stunTimer > 0 || this._pushTimer > 0; }
@@ -79,7 +81,8 @@ export class PlayerHealth extends Component {
 
         const collider = this.node.getComponent(Collider2D);
         if (collider) {
-            collider.on(Contact2DType.BEGIN_CONTACT, this._onContact, this);
+            collider.on(Contact2DType.BEGIN_CONTACT, this._onBegin, this);
+            collider.on(Contact2DType.END_CONTACT, this._onEnd, this);
         }
 
         if (gs.hp <= 0) {
@@ -90,6 +93,16 @@ export class PlayerHealth extends Component {
 
     update(dt: number): void {
         if (!this._alive) return;
+
+        // 无敌结束且仍贴着怪物 → 再次受伤
+        if (this._invulnTimer <= 0 && this._contacts.size > 0) {
+            for (const other of this._contacts) {
+                if (other.node) {
+                    this._tryDamage(other.node);
+                    break;
+                }
+            }
+        }
 
         if (this._stunTimer > 0) {
             this._stunTimer -= dt;
@@ -128,16 +141,37 @@ export class PlayerHealth extends Component {
         this._pushTimer = duration;
     }
 
+    /** 外部伤害入口（子弹等） */
+    takeHit(source?: Node): void {
+        if (!this._alive || this._invulnTimer > 0) return;
+        if (source) this._killerNode = source;
+        this._takeDamage();
+    }
+
     // ── 碰撞 ──
 
-    private _onContact(_self: Collider2D, other: Collider2D): void {
-        if (!this._alive || this._invulnTimer > 0) return;
+    private _onBegin(_self: Collider2D, other: Collider2D): void {
+        if (!this._alive) return;
         if (other.group !== GROUP.MONSTER) return;
 
         const monster = other.node.getComponent('Monster') as any;
         if (!monster || !monster.alive) return;
 
-        this._killerNode = other.node;
+        this._contacts.add(other);
+        if (this._invulnTimer <= 0) {
+            this._killerNode = other.node;
+            this._takeDamage();
+        }
+    }
+
+    private _onEnd(_self: Collider2D, other: Collider2D): void {
+        this._contacts.delete(other);
+    }
+
+    private _tryDamage(monsterNode: Node): void {
+        const monster = monsterNode.getComponent('Monster') as any;
+        if (!monster || !monster.alive) return;
+        this._killerNode = monsterNode;
         this._takeDamage();
     }
 

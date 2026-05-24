@@ -230,6 +230,10 @@
       {
         "__uuid__": "225ebedc-5868-484d-aecc-947309661ca7",
         "__expectedType__": "cc.AnimationClip"
+      },
+      {
+        "__uuid__": "8fb39bc8-9dde-4174-873a-4df6f962caeb",
+        "__expectedType__": "cc.AnimationClip"
       }
     ],
     "_defaultClip": null,
@@ -632,7 +636,9 @@
     "__prefab": {
       "__id__": 29
     },
-    "effectNodes": [],
+    "effectNodes": [
+      null
+    ],
     "walkAnimX": "Bumbino_Walk",
     "walkAnimY": "Bumbino_Walk",
     "idleAnim": "Bumibino_Idle",

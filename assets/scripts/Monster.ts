@@ -131,6 +131,8 @@ export abstract class Monster extends Component {
     // ── 公开状态 ──
 
     get alive(): boolean { return this._alive; }
+    get currentHp(): number { return this._hp; }
+    get hpMax(): number { return this._maxHp; }
 
     // ── 生命周期 ──
 

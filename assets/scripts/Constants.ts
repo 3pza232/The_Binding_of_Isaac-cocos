@@ -11,6 +11,8 @@ export const GROUP = {
     WALL: 16,
     TEAR: 32,
     ITEM: 64,
+    NEXT_SCENE: 128,
+    ENEMY_BULLET: 256,
 } as const;
 
 /** 默认属性 */

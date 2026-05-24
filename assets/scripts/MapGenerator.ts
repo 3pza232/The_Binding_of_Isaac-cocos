@@ -41,9 +41,6 @@ export class MapGenerator extends Component {
     @property({ type: Prefab, displayName: '藏品祭坛预制体' })
     itemPrefab: Prefab = null!;
 
-    @property({ type: [Prefab], displayName: '藏品预制体池' })
-    collectiblePrefabs: Prefab[] = [];
-
     @property({ type: TiledMapAsset, displayName: '普通房地图' })
     normalTmx: TiledMapAsset = null!;
 
@@ -67,6 +64,9 @@ export class MapGenerator extends Component {
 
     @property({ displayName: '商店房数量' })
     shopRooms = 1;
+
+    @property({ displayName: '下一层场景名' })
+    nextSceneName = '';
 
     @property({ displayName: '每房怪物下限' })
     monsterMin = 3;
@@ -159,7 +159,7 @@ export class MapGenerator extends Component {
                 if (dataB.type === RoomType.MONSTER && !rd?.cleared) this._spawnMonsters(mgr);
                 if (dataB.type === RoomType.BOSS && !rd?.cleared) this._spawnBoss(mgr);
                 if (dataB.type === RoomType.TREASURE && !rd?.itemTaken) {
-                    this._spawnCollectible(mgr, this.collectiblePrefabs.map(p => p.name));
+                    this._spawnCollectible(mgr, this._colPrefs.map(p => p.name));
                 }
             }
 
@@ -186,9 +186,13 @@ export class MapGenerator extends Component {
         }, 0);
     }
 
+    private get _colPrefs(): Prefab[] {
+        return GameState.collectiblePrefabs;
+    }
+
     private _buildCollectibleSfMap(): Map<string, SpriteFrame> {
         const m = new Map<string, SpriteFrame>();
-        for (const p of this.collectiblePrefabs) {
+        for (const p of this._colPrefs) {
             const node = instantiate(p);
             const sp = (node.getComponent('cc.Sprite') as any)?.spriteFrame;
             if (sp) m.set(p.name, sp);
@@ -388,7 +392,7 @@ export class MapGenerator extends Component {
     // ── 刷怪 ──
 
     private _spawnEntities(grid: Map<string, RoomData>): void {
-        const allNames = this.collectiblePrefabs.map(p => p.name);
+        const allNames = this._colPrefs.map(p => p.name);
 
         for (const [, data] of grid) {
             const mgr = data.node!.getChildByName('RoomManager');
@@ -442,7 +446,7 @@ export class MapGenerator extends Component {
             gs.collected.clear();
         }
 
-        const available = this.collectiblePrefabs.filter(p => !gs.isCollected(p.name));
+        const available = this._colPrefs.filter(p => !gs.isCollected(p.name));
         if (available.length === 0) return;
 
         const prefab = available[Math.floor(Math.random() * available.length)];

@@ -1,5 +1,5 @@
 import {
-    _decorator, Component, Node, Sprite, input, Input, EventKeyboard, KeyCode, director,
+    _decorator, Component, Node, Sprite, input, Input, EventKeyboard, KeyCode, director, isValid,
 } from 'cc';
 import { GameState } from './GameState';
 
@@ -35,13 +35,15 @@ export class DeathScreen extends Component {
     }
 
     show(killerNode: Node | null): void {
-        const pick = Math.floor(Math.random() * this._places.length);
-        for (let i = 0; i < this._places.length; i++) {
-            this._places[i].active = i === pick;
+        if (this._places.length > 0) {
+            const pick = Math.floor(Math.random() * this._places.length);
+            for (let i = 0; i < this._places.length; i++) {
+                this._places[i].active = i === pick;
+            }
         }
 
-        if (killerNode) {
-            const p = killerNode.getChildByName('portrait');
+        if (isValid(killerNode) && this._monsterSprite) {
+            const p = killerNode!.getChildByName('portrait');
             if (p) this._monsterSprite.spriteFrame = p.getComponent(Sprite)!.spriteFrame;
         }
 

@@ -26,7 +26,7 @@
     "_active": true,
     "_components": [],
     "_prefab": {
-      "__id__": 25
+      "__id__": 31
     },
     "_lpos": {
       "__type__": "cc.Vec3",
@@ -57,7 +57,7 @@
     },
     "autoReleaseAssets": false,
     "_globals": {
-      "__id__": 26
+      "__id__": 32
     },
     "_id": "58866166-5ad4-4b59-8311-5dc26ca15f1a"
   },
@@ -318,11 +318,19 @@
       {
         "__uuid__": "cd6f5338-63ca-47b9-bf0c-9eb73c3737cf",
         "__expectedType__": "cc.Prefab"
+      },
+      {
+        "__uuid__": "212acf08-f9c3-43ef-98b4-7a86c654e59f",
+        "__expectedType__": "cc.Prefab"
+      },
+      {
+        "__uuid__": "e22b9f9e-85bf-41c2-bb16-79e3a333b90c",
+        "__expectedType__": "cc.Prefab"
       }
     ],
     "bossPrefabs": [
       {
-        "__uuid__": "5e3eebc1-ae12-4085-a3a5-27e08a571a65",
+        "__uuid__": "41c1648a-95ee-4cb5-b6c6-3d880a9accbc",
         "__expectedType__": "cc.Prefab"
       }
     ],
@@ -330,12 +338,6 @@
       "__uuid__": "c048adb8-a31c-4bd9-8223-b7b87d737650",
       "__expectedType__": "cc.Prefab"
     },
-    "collectiblePrefabs": [
-      {
-        "__uuid__": "3dec8498-f4a1-4920-8974-87a54d610430",
-        "__expectedType__": "cc.Prefab"
-      }
-    ],
     "normalTmx": {
       "__uuid__": "12bead02-cacc-418d-8ef0-906072a39f78",
       "__expectedType__": "cc.TiledMapAsset"
@@ -356,8 +358,9 @@
     "minRooms": 8,
     "treasureRooms": 1,
     "shopRooms": 1,
-    "monsterMin": 3,
-    "monsterMax": 5,
+    "nextSceneName": "start",
+    "monsterMin": 1,
+    "monsterMax": 1,
     "_id": "8cz9/SWYVOhbmsZrJMkCSV"
   },
   {
@@ -476,6 +479,15 @@
       },
       {
         "__id__": 23
+      },
+      {
+        "__id__": 25
+      },
+      {
+        "__id__": 27
+      },
+      {
+        "__id__": 29
       }
     ],
     "removedComponents": []
@@ -577,6 +589,60 @@
     ]
   },
   {
+    "__type__": "CCPropertyOverrideInfo",
+    "targetInfo": {
+      "__id__": 26
+    },
+    "propertyPath": [
+      "_target"
+    ],
+    "value": {
+      "__id__": 12
+    }
+  },
+  {
+    "__type__": "cc.TargetInfo",
+    "localID": [
+      "200QYGvIhEo4ZxO6mVYYCi"
+    ]
+  },
+  {
+    "__type__": "CCPropertyOverrideInfo",
+    "targetInfo": {
+      "__id__": 28
+    },
+    "propertyPath": [
+      "_target"
+    ],
+    "value": {
+      "__id__": 12
+    }
+  },
+  {
+    "__type__": "cc.TargetInfo",
+    "localID": [
+      "94UZcUhgFDloXXZSggnbLy"
+    ]
+  },
+  {
+    "__type__": "CCPropertyOverrideInfo",
+    "targetInfo": {
+      "__id__": 30
+    },
+    "propertyPath": [
+      "_target"
+    ],
+    "value": {
+      "__id__": 12
+    }
+  },
+  {
+    "__type__": "cc.TargetInfo",
+    "localID": [
+      "01h9I/d1RL7axb9ydi2Suv"
+    ]
+  },
+  {
     "__type__": "cc.PrefabInfo",
     "root": null,
     "asset": null,
@@ -592,28 +658,28 @@
   {
     "__type__": "cc.SceneGlobals",
     "ambient": {
-      "__id__": 27
-    },
-    "shadows": {
-      "__id__": 28
-    },
-    "_skybox": {
-      "__id__": 29
-    },
-    "fog": {
-      "__id__": 30
-    },
-    "octree": {
-      "__id__": 31
-    },
-    "skin": {
-      "__id__": 32
-    },
-    "lightProbeInfo": {
       "__id__": 33
     },
-    "postSettings": {
+    "shadows": {
       "__id__": 34
+    },
+    "_skybox": {
+      "__id__": 35
+    },
+    "fog": {
+      "__id__": 36
+    },
+    "octree": {
+      "__id__": 37
+    },
+    "skin": {
+      "__id__": 38
+    },
+    "lightProbeInfo": {
+      "__id__": 39
+    },
+    "postSettings": {
+      "__id__": 40
     },
     "bakedWithStationaryMainLight": false,
     "bakedWithHighpLightmap": false

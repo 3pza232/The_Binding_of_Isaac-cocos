@@ -1,5 +1,5 @@
 import {
-    _decorator, Component, Node, UIOpacity,
+    _decorator, Component, Node, UIOpacity, Prefab,
     input, Input, EventKeyboard, KeyCode, director, tween,
 } from 'cc';
 import { GameState } from './GameState';
@@ -8,6 +8,9 @@ const { ccclass, property } = _decorator;
 
 @ccclass('MenuController')
 export class MenuController extends Component {
+
+    @property({ type: [Prefab], displayName: '藏品预制体池' })
+    collectiblePrefabs: Prefab[] = [];
 
     @property({ displayName: '淡出时长(秒)', range: [0.5, 5, 0.5], slide: true })
     fadeDuration = 2;
@@ -43,7 +46,9 @@ export class MenuController extends Component {
             case KeyCode.SPACE:
                 this._triggered = true;
                 input.off(Input.EventType.KEY_DOWN, this._onKey, this);
-                if (!this._selectedNew && GameState.hasSave) {
+                if (this._selectedNew) {
+                    GameState.collectiblePrefabs = this.collectiblePrefabs;
+                } else if (GameState.hasSave) {
                     GameState.i.shouldContinue = true;
                 }
                 this._fadeAndStart();

@@ -1,4 +1,4 @@
-import { sys, KeyCode } from 'cc';
+import { sys, KeyCode, Prefab } from 'cc';
 import {
     DEFAULT_MAX_HP, DEFAULT_MOVE_SPEED, DEFAULT_TEAR_DAMAGE,
     DEFAULT_TEAR_SPEED, DEFAULT_RANGE, DEFAULT_FIRE_RATE, DEFAULT_KEYS,
@@ -84,6 +84,11 @@ export class GameState {
 
     heldMoveKeys = new Set<KeyCode>();
     heldAimKeys = new Map<KeyCode, number>();
+
+    // ── 藏品池（跨关卡共享）──
+
+    /** 由 MenuController 在开始新游戏时注入 */
+    static collectiblePrefabs: Prefab[] = [];
 
     // ── 菜单 → 游戏过渡标记 ──
 
