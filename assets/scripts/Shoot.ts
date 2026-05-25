@@ -1,18 +1,22 @@
 import {
-    _decorator, Component, Node, Prefab, instantiate,
-    AudioClip, AudioSource, Vec2, Vec3, Sprite,
+    _decorator, Component, Node, Prefab, Vec2, Vec3,
+    AudioClip, AudioSource, SpriteFrame, Sprite, Color, tween, v3, Tween,
 } from 'cc';
 import { Head } from './Head';
 import { Body } from './Body';
-import { Tear } from './Tear';
 import { GameState } from './GameState';
-import { DollarBill } from './DollarBill';
-import { Brimstone } from './Brimstone';
+import { IAttackStrategy } from './IAttackStrategy';
+import { NormalTearStrategy } from './NormalTearStrategy';
+import { BrimstoneStrategy } from './BrimstoneStrategy';
+import { AttackType } from './Constants';
 
 const { ccclass, property } = _decorator;
 
-enum S { IDLE, CHARGING, LASER }
-
+/**
+ * 攻击管理器 — 根据 GameState.attackType 切换攻击策略。
+ * 自身不包含攻击逻辑，全部委托给 IAttackStrategy。
+ * @property 保持与旧 Shoot 兼容，供策略读取。
+ */
 @ccclass('Shoot')
 export class Shoot extends Component {
 
@@ -64,18 +68,42 @@ export class Shoot extends Component {
     @property({ displayName: '破裂音量', range: [0, 1, 0.05], slide: true })
     breakVolume = 1;
 
+    @property({ type: [SpriteFrame], displayName: '蓄力条帧(0→100%)' })
+    chargeBarFrames: SpriteFrame[] = [];
+
+    @property({ type: Node, displayName: '蓄力条节点' })
+    chargeBarNode: Node | null = null;
+
+    @property({ type: AudioClip, displayName: '硫磺火发射音效' })
+    brimstoneFireSound: AudioClip | null = null;
+
+    // ── 策略可访问的公共引用 ──
+
     private _head: Head = null!;
     private _body: Body = null!;
     private _headNode: Node = null!;
     private _audioSrc: AudioSource = null!;
     private _spawnPos = new Vec3();
-    private _cooldown = 0;
+    private _strategy: IAttackStrategy = null!;
+    private _currentType = AttackType.NORMAL;
+    private _chargeBarSp: Sprite | null = null;
+    private _chargeBarPulse = false;
 
-    // 硫磺火蓄力
-    private _brimState = S.IDLE;
-    private _brimCharge = 0;
-    private _brimLaserTimer = 0;
-    private _brimFired = false;
+    get head(): Head { return this._head; }
+    get body(): Body { return this._body; }
+    get audioSrc(): AudioSource { return this._audioSrc; }
+
+    calcSpawnPos(dir: Vec2): Vec3 {
+        this._headNode.getWorldPosition(this._spawnPos);
+        if (dir.x !== 0) {
+            this._spawnPos.x += dir.x * this.spawnOffsetX;
+        } else {
+            this._spawnPos.y += dir.y * this.spawnOffsetY;
+        }
+        return this._spawnPos;
+    }
+
+    // ── 生命周期 ──
 
     onLoad(): void {
         const gs = GameState.i;
@@ -90,141 +118,82 @@ export class Shoot extends Component {
         this._body = this.node.getComponent(Body)!;
         this._headNode = this.node.getChildByName('Head')!;
         this._audioSrc = this.node.getComponent(AudioSource) || this.node.addComponent(AudioSource);
+        this._initChargeBar();
 
-        // 跨房间蓄力状态恢复
-        this._brimState = gs.brimState;
-        this._brimCharge = gs.brimCharge;
-        this._brimFired = gs.brimFired;
-        this._brimLaserTimer = gs.brimLaserTimer;
-    }
-
-    onDestroy(): void {
-        // 离开房间时保存蓄力状态
-        const gs = GameState.i;
-        gs.brimState = this._brimState;
-        gs.brimCharge = this._brimCharge;
-        gs.brimFired = this._brimFired;
-        gs.brimLaserTimer = this._brimLaserTimer;
+        this._currentType = gs.attackType;
+        this._strategy = this._makeStrategy(this._currentType);
+        this._strategy.init();
     }
 
     update(dt: number): void {
         const gs = GameState.i;
         gs.tickEffects(dt);
 
-        // 硫磺火蓄力状态机
-        if (gs.brimstone) {
-            this._brimUpdate(dt);
-            if (this._brimState !== S.IDLE) return; // 蓄力/激光期间禁止普通射击
+        // 攻击类型变更 → 切换策略
+        if (gs.attackType !== this._currentType) {
+            this._strategy.destroy();
+            this._currentType = gs.attackType;
+            this._strategy = this._makeStrategy(this._currentType);
+            this._strategy.init();
         }
 
-        this._cooldown -= dt;
-        if (this._cooldown > 0) return;
-
-        const dir = this._head.aimDirection;
-        if (!dir) return;
-
-        this._cooldown = gs.fireRate;
-        this._spawnTear(dir);
+        this._strategy.update(dt);
     }
 
-    private _brimUpdate(dt: number): void {
-        const head = this._head;
+    // ── 蓄力条 ──
 
-        // 全键松开时清除防重蓄标记
-        if (head.fireDir !== null) this._brimFired = false;
-
-        switch (this._brimState) {
-            case S.IDLE:
-                if (!this._brimFired && head.fireDir === null && head.aimDirection) {
-                    this._brimState = S.CHARGING;
-                    this._brimCharge = 0;
-                    GameState.i.brimCharged = false;
-                }
-                break;
-
-            case S.CHARGING:
-                if (head.fireDir !== null) {
-                    if (this._brimCharge >= Brimstone.chargeTime || GameState.i.brimCharged) {
-                        GameState.i.brimCharged = false;
-                        this._brimState = S.LASER;
-                        this._brimLaserTimer = Brimstone.laserDuration + Brimstone.fadeTime;
-                        this._brimFired = true;
-                        Brimstone.fire(this.node.worldPosition, head.fireDir, this.node.parent!, this.node);
-                    } else {
-                        this._brimState = S.IDLE;
-                    }
-                } else if (head.aimDirection) {
-                    this._brimCharge += dt;
-                    if (this._brimCharge >= Brimstone.chargeTime) {
-                        GameState.i.brimCharged = true;
-                    }
-                } else {
-                    this._brimState = S.IDLE;
-                }
-                break;
-
-            case S.LASER:
-                this._brimLaserTimer -= dt;
-                if (this._brimLaserTimer <= 0) {
-                    // 激光结束：检测当前是否按着方向键，是则立刻开始蓄力
-                    if (head.fireDir === null && head.aimDirection) {
-                        this._brimState = S.CHARGING;
-                        this._brimCharge = 0;
-                    } else {
-                        this._brimState = S.IDLE;
-                        this._brimFired = true;
-                    }
-                }
-                break;
+    private _initChargeBar(): void {
+        const node = this.chargeBarNode || this.node.getChildByName('ChargeBar');
+        if (node) {
+            this._chargeBarSp = node.getComponent(Sprite);
+            node.active = false;
         }
     }
 
-    private _spawnTear(dir: Vec2): void {
-        const gs = GameState.i;
-        const bv = this._body.velocity;
-        const mx = bv.x * this.momentumFactor;
-        const my = bv.y * this.momentumFactor;
+    /** 更新蓄力条 0~1，满时红色+鼓动 */
+    updateChargeBar(ratio: number): void {
+        if (!this._chargeBarSp || this.chargeBarFrames.length === 0) return;
+        const node = this._chargeBarSp.node;
+        if (!node.active) node.active = true;
 
-        const tear = instantiate(this.tearPrefab);
-        tear.setParent(this.node.parent!);
-        tear.setWorldPosition(this._calcSpawnPos(dir));
+        const idx = Math.min(
+            Math.floor(ratio * this.chargeBarFrames.length),
+            this.chargeBarFrames.length - 1,
+        );
+        this._chargeBarSp.spriteFrame = this.chargeBarFrames[idx] || null;
 
-        const tearComp = tear.getComponent(Tear);
-        if (tearComp) {
-            tearComp.init(
-                dir,
-                gs.tearSpeed,
-                gs.range,
-                this.fallSpeed,
-                this.fallStartRatio,
-                gs.enemyPiercing,
-                gs.wallPiercing,
-                mx,
-                my,
-                Math.max(1, gs.tearDamage * gs.damageMul + (DollarBill.active ? DollarBill.dmg : 0)),
-                this.breakSound,
-                this.breakVolume,
-                gs.homing,
-            );
-
-            const body = tear.getChildByName('Body');
-            if (body) {
-                const sp = body.getComponent('cc.Sprite') as Sprite;
-                if (gs.tearSf) sp.spriteFrame = gs.tearSf;
-                if (DollarBill.active) sp.color = DollarBill.color;
+        if (ratio >= 1) {
+            this._chargeBarSp.color = Color.RED;
+            if (!this._chargeBarPulse) {
+                this._chargeBarPulse = true;
+                tween(node)
+                    .to(0.12, { scale: v3(1.2, 1.2, 1) }, { easing: 'sineInOut' })
+                    .to(0.12, { scale: v3(1, 1, 1) }, { easing: 'sineInOut' })
+                    .union()
+                    .repeatForever()
+                    .start();
             }
-
-            if (this.fireSound) this._audioSrc.playOneShot(this.fireSound, this.fireVolume);
         }
     }
 
-    private _calcSpawnPos(dir: Vec2): Vec3 {
-        this._headNode.getWorldPosition(this._spawnPos);
-        if (dir.x !== 0) {
-            this._spawnPos.x += dir.x * this.spawnOffsetX;
-        } else {
-            this._spawnPos.y += dir.y * this.spawnOffsetY;
+    /** 清除蓄力条（取消/发射/非蓄力态） */
+    clearChargeBar(): void {
+        if (this._chargeBarSp) {
+            Tween.stopAllByTarget(this._chargeBarSp.node);
+            this._chargeBarSp.node.setScale(1, 1, 1);
+            this._chargeBarSp.spriteFrame = null;
+            this._chargeBarSp.color = Color.WHITE;
+            this._chargeBarSp.node.active = false;
         }
-        return this._spawnPos;
+        this._chargeBarPulse = false;
+    }
+
+    private _makeStrategy(type: AttackType): IAttackStrategy {
+        switch (type) {
+            case AttackType.BRIMSTONE:
+                return new BrimstoneStrategy(this);
+            default:
+                return new NormalTearStrategy(this);
+        }
     }
 }

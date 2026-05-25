@@ -1,4 +1,4 @@
-import { _decorator, Node, Color, v2, isValid } from "cc";
+import { _decorator, Node, Color, v2, isValid, AudioClip } from "cc";
 import { Monster } from "./Monster";
 
 const { ccclass, property } = _decorator;
@@ -69,6 +69,9 @@ export class Bumbino extends Monster {
 
     @property({ displayName: "震地特效节点索引" })
     atk2EffectIdx = 1;
+
+    @property({ type: AudioClip, displayName: '震地音效' })
+    slamSound: AudioClip | null = null;
 
     // ── AI 参数 ──
 
@@ -235,6 +238,11 @@ export class Bumbino extends Monster {
         const idx = this.atk2EffectIdx;
         if (idx < this.effectNodes.length && this.effectNodes[idx]) {
             this.playEffect(idx, "soot_bomb");
+        }
+
+        // 震地音效
+        if (this.slamSound) {
+            this._audioSrc?.playOneShot(this.slamSound, this.sfxVolume);
         }
 
         // 范围伤害

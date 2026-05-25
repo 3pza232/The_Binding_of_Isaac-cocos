@@ -25,6 +25,7 @@ export class SaveCollector {
             homingEnabled: gs.homing,
             enemyPiercing: gs.enemyPiercing,
             wallPiercing: gs.wallPiercing,
+            brimstone: gs.brimstone,
             dollarBill: gs.dollarBill,
             keys: gs.keys,
             coins: gs.coins,

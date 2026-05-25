@@ -29,3 +29,6 @@ export const MAX_COINS = 99;
 
 /** 藏品槽上限 */
 export const MAX_COLLECTIBLE_SLOTS = 25;
+
+/** 攻击类型 */
+export enum AttackType { NORMAL, BRIMSTONE }

@@ -1,9 +1,10 @@
-import { sys, KeyCode, Prefab, SpriteFrame } from 'cc';
+import { sys, KeyCode, Prefab, SpriteFrame, Node } from 'cc';
 import {
     DEFAULT_MAX_HP, DEFAULT_MOVE_SPEED, DEFAULT_TEAR_DAMAGE,
     DEFAULT_TEAR_SPEED, DEFAULT_RANGE, DEFAULT_FIRE_RATE, DEFAULT_KEYS,
-    MAX_KEYS, MAX_COINS,
+    MAX_KEYS, MAX_COINS, AttackType,
 } from './Constants';
+import { EffectPipeline } from './EffectPipeline';
 
 // ── 存档数据结构 ──
 
@@ -19,6 +20,7 @@ export interface PlayerStatsData {
     homingEnabled: boolean;
     enemyPiercing: boolean;
     wallPiercing: boolean;
+    brimstone: boolean;
     dollarBill: boolean;
     keys: number;
     coins: number;
@@ -74,13 +76,14 @@ export class GameState {
     wallPiercing = false;
     tearSf: SpriteFrame | null = null;
 
+    attackType = AttackType.NORMAL;
     brimstone = false;
     brimCharge = 0;
     brimState = 0;
-    brimCharged = false;  // 蓄满标记（跨房间保持）
+    brimCharged = false;
     brimFired = false;
     brimLaserTimer = 0;
-    dollarBill = false;  // 仅用于存档，其他通用效果都走 registerEffect
+    dollarBill = false;
 
     // ── 资源 ──
 
@@ -108,6 +111,9 @@ export class GameState {
     // ── 菜单 → 游戏过渡标记 ──
 
     shouldContinue = false;
+
+    /** 跨场景持久 BGM 节点（Start→Menu 无缝衔接） */
+    static persistBgmNode: Node | null = null;
 
     // ── 通用持续效果回调（藏品可注册帧更新）──
 
@@ -160,7 +166,15 @@ export class GameState {
         this.wallPiercing = false;
         this.tearSf = null;
         this.dollarBill = false;
+        this.brimstone = false;
+        this.attackType = AttackType.NORMAL;
+        this.brimCharge = 0;
+        this.brimState = 0;
+        this.brimCharged = false;
+        this.brimFired = false;
+        this.brimLaserTimer = 0;
         this.clearEffects();
+        EffectPipeline.clear();
         this.keys = DEFAULT_KEYS;
         this.coins = 0;
         this.collected.clear();
@@ -182,6 +196,8 @@ export class GameState {
         this.homing = s.homingEnabled;
         this.enemyPiercing = s.enemyPiercing;
         this.wallPiercing = s.wallPiercing;
+        this.brimstone = s.brimstone;
+        this.attackType = s.brimstone ? AttackType.BRIMSTONE : AttackType.NORMAL;
         this.dollarBill = s.dollarBill;
         this.keys = s.keys;
         this.coins = s.coins;

@@ -221,13 +221,16 @@
     "__prefab": {
       "__id__": 11
     },
-    "pickupSound": null,
+    "pickupSound": {
+      "__uuid__": "42cd50d4-c07f-4215-86cd-ea7eb2671799",
+      "__expectedType__": "cc.AudioClip"
+    },
     "sfxVolume": 1,
     "floatAmplitude": 5,
     "floatPeriod": 1.5,
     "pulseStrength": 0.06,
     "pulsePeriod": 0.8,
-    "offsetXProp": 20,
+    "offsetXProp": 50,
     "offsetYProp": 20,
     "chargeTimeProp": 2,
     "laserDurationProp": 2,

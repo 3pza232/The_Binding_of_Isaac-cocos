@@ -1,4 +1,4 @@
-import { _decorator, Node, Prefab, instantiate, RigidBody2D, Collider2D, v2, isValid, tween, Tween } from 'cc';
+import { _decorator, Node, Prefab, instantiate, RigidBody2D, Collider2D, v2, isValid, tween, Tween, TiledMap } from 'cc';
 import { Monster } from './Monster';
 import { EnemyBullet } from './EnemyBullet';
 
@@ -57,11 +57,7 @@ export class Monstro extends Monster {
     @property({ displayName: '子弹速度' })
     bulletSpeed = 12;
 
-    @property({ displayName: '房间半宽' })
-    roomHalfW = 380;
-
-    @property({ displayName: '房间半高' })
-    roomHalfH = 230;
+    // 动态房间碰撞边界（从 TiledMap 计算）
 
     // ── 散射攻击 ──
 
@@ -115,8 +111,12 @@ export class Monstro extends Monster {
     private _shotThisPause = false;
     private _atkCooldownTimer = 0;
 
+    private _roomHalfW = 380;
+    private _roomHalfH = 230;
+
     onEnable(): void {
         super.onEnable();
+        this._calcRoomBounds();
         Tween.stopAllByTarget(this.spriteNode);
         this.spriteNode.setPosition(0, 0, 0);
         this._state = JumpState.INITIAL;
@@ -221,12 +221,31 @@ export class Monstro extends Monster {
         return { cx: this.node.worldPosition.x, cy: this.node.worldPosition.y };
     }
 
+    /** 从房间 TiledMap 动态计算可行走区域边界（排除墙壁厚度） */
+    private _calcRoomBounds(): void {
+        const roomNode = this.node.parent?.parent;
+        if (!roomNode) return;
+        const tm = roomNode.getComponent(TiledMap);
+        if (!tm) return;
+        const mapSize = tm.getMapSize();
+        const tileSize = tm.getTileSize();
+        // 假设四边各 1 格墙壁，内部 = 总尺寸 - 2 * tileSize
+        const bw = tileSize.width;
+        const bh = tileSize.height;
+        const interiorW = mapSize.width * bw - bw * 2;
+        const interiorH = mapSize.height * bh - bh * 2;
+        if (interiorW > 0 && interiorH > 0) {
+            this._roomHalfW = interiorW / 2;
+            this._roomHalfH = interiorH / 2;
+        }
+    }
+
     private _calcTarget(chasing: boolean): { tx: number; ty: number } {
         const mx = this.node.worldPosition.x;
         const my = this.node.worldPosition.y;
         const { cx, cy } = this._getRoomCenter();
-        const minX = cx - this.roomHalfW, maxX = cx + this.roomHalfW;
-        const minY = cy - this.roomHalfH, maxY = cy + this.roomHalfH;
+        const minX = cx - this._roomHalfW, maxX = cx + this._roomHalfW;
+        const minY = cy - this._roomHalfH, maxY = cy + this._roomHalfH;
 
         let tx: number, ty: number;
         if (chasing) {

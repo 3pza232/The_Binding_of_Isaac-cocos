@@ -52,7 +52,8 @@ export class Head extends Component {
         input.on(Input.EventType.KEY_DOWN, this._onKeyDown, this);
         input.on(Input.EventType.KEY_UP, this._onKeyUp, this);
         this._pressTimes = new Map(GameState.i.heldAimKeys);
-        // 清理传门期间可能丢失 release 事件的过时按键（>0.5s 前按下的视为残留）
+        // 清理传门期间可能丢失 release 事件的过时按键
+        // 因为每帧 update 会刷新时间戳，只有真正松键后不再刷新的才算残留
         const now = Date.now();
         for (const [k, ts] of this._pressTimes) {
             if (now - ts > 500) {
@@ -72,7 +73,15 @@ export class Head extends Component {
     }
 
     update(_dt: number): void {
-        if (this._pressTimes.size === 0) this._followBody();
+        if (this._pressTimes.size === 0) {
+            this._followBody();
+        } else {
+            // 每帧刷新时间戳，防止跨房间恢复时被 500ms 阈值误清理
+            const now = Date.now();
+            for (const k of this._pressTimes.keys()) {
+                GameState.i.heldAimKeys.set(k, now);
+            }
+        }
     }
 
     private _onKeyDown(e: EventKeyboard): void {

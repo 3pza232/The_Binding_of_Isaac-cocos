@@ -848,7 +848,11 @@
     "atk2AnimX": "Bumbino_Attack_02",
     "atk2AnimY": "Bumbino_Attack_02",
     "atk2EffectIdx": 0,
-    "trackRange": 350,
+    "slamSound": {
+      "__uuid__": "ef7ad921-9ada-406b-beb0-94a2a96e7dfd",
+      "__expectedType__": "cc.AudioClip"
+    },
+    "trackRange": 450,
     "moveSpeed": 2,
     "wanderRatio": 0.2,
     "maxHp": 385,

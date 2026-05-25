@@ -361,6 +361,11 @@
     "nextSceneName": "start",
     "monsterMin": 1,
     "monsterMax": 1,
+    "gameBgm": {
+      "__uuid__": "ada6c035-e212-4038-923e-ab518342e080",
+      "__expectedType__": "cc.AudioClip"
+    },
+    "bgmVolume": 0.6,
     "_id": "8cz9/SWYVOhbmsZrJMkCSV"
   },
   {

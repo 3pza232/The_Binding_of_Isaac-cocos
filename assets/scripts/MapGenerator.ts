@@ -1,8 +1,10 @@
-import { _decorator, Component, Node, Prefab, instantiate, TiledMap, TiledMapAsset, SpriteFrame } from 'cc';
+import { _decorator, Component, Node, Prefab, instantiate, TiledMap, TiledMapAsset, SpriteFrame, AudioClip, AudioSource } from 'cc';
 import { Room, RoomType } from './Room';
 import { DoorController } from './DoorController';
 import { GameState, SaveData } from './GameState';
 import { CollectibleUI } from './CollectibleUI';
+import { EffectPipeline } from './EffectPipeline';
+import { DollarBill } from './DollarBill';
 import { ROOM_SPACING_X, ROOM_SPACING_Y } from './Constants';
 
 const { ccclass, property } = _decorator;
@@ -74,6 +76,12 @@ export class MapGenerator extends Component {
     @property({ displayName: '每房怪物上限' })
     monsterMax = 6;
 
+    @property({ type: AudioClip, displayName: '游戏背景音乐' })
+    gameBgm: AudioClip | null = null;
+
+    @property({ displayName: '音乐音量', range: [0, 1, 0.05], slide: true })
+    bgmVolume = 0.6;
+
     /** 本轮生成已分配的藏品名，避免同一层多个宝箱房刷出重复藏品 */
     private _assignedThisRun = new Set<string>();
 
@@ -88,11 +96,27 @@ export class MapGenerator extends Component {
             gs.restoreStats(saved.stats);
             gs.collected = new Set(saved.collectedPool);
             gs.bossIntroDone = new Set(saved.bossIntroShown);
+            this._restoreCollectibleEffects();
             this._loadFromSave(saved);
         } else {
             gs.reset();
             this._generate();
         }
+
+        // 场景背景音乐（loop）
+        if (this.gameBgm) {
+            const src = this.node.getComponent(AudioSource) || this.node.addComponent(AudioSource);
+            src.clip = this.gameBgm;
+            src.loop = true;
+            src.volume = this.bgmVolume;
+            src.play();
+        }
+    }
+
+    /** 读档后恢复动态藏品管线效果（onPickup 不会重复执行） */
+    private _restoreCollectibleEffects(): void {
+        EffectPipeline.clear();
+        if (GameState.i.dollarBill) DollarBill.restoreEffect();
     }
 
     // ── 读档 ──

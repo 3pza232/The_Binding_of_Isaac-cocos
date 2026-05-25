@@ -961,11 +961,18 @@
         "__expectedType__": "cc.Prefab"
       },
       {
-        "__uuid__": "76270b4a-9cd0-427d-af72-ae43ce2bd125",
+        "__uuid__": "3dec8498-f4a1-4920-8974-87a54d610430",
         "__expectedType__": "cc.Prefab"
       }
     ],
-    "fadeDuration": 2,
+    "fadeDuration": 4,
+    "transitionSfx": {
+      "__uuid__": "4345b928-208f-4f5d-b66f-65c2cccee1ee",
+      "__expectedType__": "cc.AudioClip"
+    },
+    "transitionVol": 1,
+    "bgm": null,
+    "bgmVolume": 0.7,
     "_id": "8bXbi6uadKMrfUHR63xWry"
   },
   {

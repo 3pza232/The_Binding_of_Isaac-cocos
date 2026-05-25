@@ -1,9 +1,8 @@
-import { _decorator, Node, Prefab, instantiate, Vec2, Vec3 } from 'cc';
+import { _decorator, Node, Prefab, instantiate, Vec2, Vec3, Color, Sprite } from 'cc';
 import { ItemBase } from './ItemBase';
 import { GameState } from './GameState';
 import { BrimstoneLaser } from './BrimstoneLaser';
-import { DollarBill } from './DollarBill';
-import { ROOM_SPACING_X, ROOM_SPACING_Y } from './Constants';
+import { AttackType, ROOM_SPACING_X, ROOM_SPACING_Y } from './Constants';
 
 const { ccclass, property } = _decorator;
 
@@ -12,10 +11,8 @@ const ROOM_DIAG = Math.sqrt(ROOM_SPACING_X ** 2 + ROOM_SPACING_Y ** 2);
 @ccclass('Brimstone')
 export class Brimstone extends ItemBase {
 
-    // ── 效果参数（onPickup 时从实例注入静态）──
-
-    static chargeTime = 4;
-    static laserDuration = 2;
+    static chargeTime = 3;
+    static laserDuration = 1.5;
     static tickRate = 4;
     static fadeTime = 0.3;
     static headPrefab: Prefab | null = null;
@@ -31,10 +28,10 @@ export class Brimstone extends ItemBase {
     offsetYProp = 5;
 
     @property({ displayName: '蓄力时长(秒)', range: [1, 8, 0.5], slide: true })
-    chargeTimeProp = 4;
+    chargeTimeProp = 3;
 
     @property({ displayName: '激光持续(秒)', range: [0.5, 5, 0.5], slide: true })
-    laserDurationProp = 2;
+    laserDurationProp = 1.5;
 
     @property({ displayName: '伤害频率(次/秒)', range: [1, 30, 1] })
     tickRateProp = 4;
@@ -62,24 +59,25 @@ export class Brimstone extends ItemBase {
         Brimstone.offsetX = this.offsetXProp;
         Brimstone.offsetY = this.offsetYProp;
         GameState.i.brimstone = true;
+        GameState.i.attackType = AttackType.BRIMSTONE;
     }
 
-    // ── 发射激光 ──
-
-    static fire(worldPos: Vec3 | Vec2, dir: Vec2, parent: Node, player: Node): void {
+    /** 发射激光（由 BrimstoneStrategy 调用，damage 和 color 已经 EffectPipeline 修饰） */
+    static fire(
+        worldPos: Vec3 | Vec2, dir: Vec2, damage: number, color: Color,
+        parent: Node, player: Node,
+    ): void {
         if (!Brimstone.headPrefab || !Brimstone.bodyPrefab) return;
 
-        const gs = GameState.i;
-        const dmg = Math.max(1, gs.tearDamage * gs.damageMul + (DollarBill.active ? DollarBill.dmg : 0));
-        const wx = ('x' in worldPos ? (worldPos as Vec2).x : (worldPos as Vec3).x) + dir.x * Brimstone.offsetX;
-        const wy = ('x' in worldPos ? (worldPos as Vec2).y : (worldPos as Vec3).y) + dir.y * Brimstone.offsetY;
+        const wx = worldPos.x + dir.x * Brimstone.offsetX;
+        const wy = worldPos.y + dir.y * Brimstone.offsetY;
         const pw = player.worldPosition;
 
         const head = instantiate(Brimstone.headPrefab);
         head.setParent(parent);
         head.setWorldPosition(wx, wy, 0);
         _rotate(head, dir);
-        _addLaser(head, dmg, player, wx - pw.x, wy - pw.y);
+        _addLaser(head, damage, color, player, wx - pw.x, wy - pw.y);
 
         let dist = Brimstone.segmentSize;
         while (dist < ROOM_DIAG) {
@@ -89,18 +87,21 @@ export class Brimstone extends ItemBase {
             body.setParent(parent);
             body.setWorldPosition(bx, by, 0);
             _rotate(body, dir);
-            _addLaser(body, dmg, player, bx - pw.x, by - pw.y);
+            _addLaser(body, damage, color, player, bx - pw.x, by - pw.y);
             dist += Brimstone.segmentSize;
         }
     }
 }
 
-function _addLaser(node: Node, dmg: number, player: Node, ox: number, oy: number): BrimstoneLaser {
+function _addLaser(node: Node, dmg: number, color: Color, player: Node, ox: number, oy: number): BrimstoneLaser {
     const bl = node.getComponent(BrimstoneLaser) || node.addComponent(BrimstoneLaser);
     bl.damage = dmg;
     bl.playerNode = player;
     bl.offsetX = ox;
     bl.offsetY = oy;
+    // 应用颜色修饰（DollarBill 等藏品效果；Sprite 在子节点 "Sprite" 上）
+    const sp = node.getChildByName('Sprite')?.getComponent(Sprite);
+    if (sp) sp.color = color;
     bl.startLaser();
     return bl;
 }
