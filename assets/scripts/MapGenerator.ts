@@ -53,10 +53,10 @@ export class MapGenerator extends Component {
     @property({ type: TiledMapAsset, displayName: 'Boss 房地图' })
     bossTmx: TiledMapAsset = null!;
 
-    @property({ displayName: '总房间数' })
+    @property({ displayName: '总房间数', tooltip: '怪物房（含初始房）数量，Boss 会替换其中一间，宝箱/商店房额外追加' })
     totalRooms = 10;
 
-    @property({ displayName: '最少房间数' })
+    @property({ displayName: '最少怪物房数', tooltip: '低于此数会报警，纯提示' })
     minRooms = 8;
 
     @property({ displayName: '宝箱房数量' })
@@ -73,6 +73,9 @@ export class MapGenerator extends Component {
 
     @property({ displayName: '每房怪物上限' })
     monsterMax = 6;
+
+    /** 本轮生成已分配的藏品名，避免同一层多个宝箱房刷出重复藏品 */
+    private _assignedThisRun = new Set<string>();
 
     // ── 主流程 ──
 
@@ -204,14 +207,15 @@ export class MapGenerator extends Component {
     // ── 程序化生成 ──
 
     private _generate(): void {
+        this._assignedThisRun.clear();
         const grid = new Map<string, RoomData>();
 
         this._growTree(grid);
         this._placeBoss(grid);
-        this._addBranches(grid);
+        this._addSpecialRooms(grid);
 
         if (grid.size < this.minRooms) {
-            console.warn(`[MapGenerator] 仅生成 ${grid.size} 个房间（目标 ≥ ${this.minRooms}）`);
+            console.warn(`[MapGenerator] 怪物房仅 ${grid.size - this.treasureRooms - this.shopRooms} 间（目标 ≥ ${this.minRooms}）`);
         }
 
         this._instantiateRooms(grid);
@@ -236,12 +240,11 @@ export class MapGenerator extends Component {
     }
 
     private _growTree(grid: Map<string, RoomData>): void {
-        const minPath = Math.max(this.minRooms, Math.ceil(this.totalRooms * 0.55));
         grid.set('0,0', this._makeRoom(0, 0, RoomType.START));
-
+        const target = this.totalRooms;
         const frontier: string[] = ['0,0'];
 
-        while (grid.size < minPath && frontier.length > 0) {
+        while (grid.size < target && frontier.length > 0) {
             const idx = Math.floor(Math.random() * frontier.length);
             const key = frontier[idx];
             const parent = grid.get(key)!;
@@ -281,39 +284,29 @@ export class MapGenerator extends Component {
         if (boss) boss.type = RoomType.BOSS;
     }
 
-    private _addBranches(grid: Map<string, RoomData>): void {
-        let treasuresPlaced = 0;
-        let shopsPlaced = 0;
-        const remaining = this.totalRooms - grid.size;
+    /** 追加宝箱房 / 商店房到树叶末端（额外房间，不计入 totalRooms） */
+    private _addSpecialRooms(grid: Map<string, RoomData>): void {
+        const toPlace: RoomType[] = [];
+        for (let i = 0; i < this.treasureRooms; i++) toPlace.push(RoomType.TREASURE);
+        for (let i = 0; i < this.shopRooms; i++) toPlace.push(RoomType.SHOP);
 
-        for (let i = 0; i < remaining; i++) {
-            let type: RoomType;
-            if (treasuresPlaced < this.treasureRooms) {
-                type = RoomType.TREASURE;
-            } else if (shopsPlaced < this.shopRooms) {
-                type = RoomType.SHOP;
-            } else {
-                type = RoomType.MONSTER;
+        for (const type of toPlace) {
+            const cands = this._branchCandidates(grid);
+            if (cands.length === 0) {
+                console.warn(`[MapGenerator] 无法放置 ${RoomType[type]}：无空闲相邻格`);
+                continue;
             }
-
-            const candidates = this._branchCandidates(grid);
-            if (candidates.length === 0) break;
-
-            const { parentKey, dir } = candidates[Math.floor(Math.random() * candidates.length)];
+            const { parentKey, dir } = cands[0];
             const parent = grid.get(parentKey)!;
             const [dx, dy] = DIR_VEC[dir];
-            const nx = parent.x + dx, ny = parent.y + dy;
-            const childKey = this._key(nx, ny);
-
-            const child = this._makeRoom(nx, ny, type);
+            const childKey = this._key(parent.x + dx, parent.y + dy);
+            const child = this._makeRoom(parent.x + dx, parent.y + dy, type);
             grid.set(childKey, child);
             this._link(parent, childKey, child, parentKey);
-
-            if (type === RoomType.TREASURE) treasuresPlaced++;
-            else if (type === RoomType.SHOP) shopsPlaced++;
         }
     }
 
+    /** 候选：父是 MONSTER/START，叶子节点（链接数少）优先 */
     private _branchCandidates(grid: Map<string, RoomData>): { parentKey: string; dir: Direction }[] {
         const result: { parentKey: string; dir: Direction }[] = [];
         const branchable = new Set([RoomType.START, RoomType.MONSTER]);
@@ -326,6 +319,7 @@ export class MapGenerator extends Component {
                 }
             }
         }
+        result.sort((a, b) => (grid.get(a.parentKey)?.links.size ?? 99) - (grid.get(b.parentKey)?.links.size ?? 99));
         return result;
     }
 
@@ -356,7 +350,7 @@ export class MapGenerator extends Component {
     }
 
     private _connectDoors(grid: Map<string, RoomData>): void {
-        for (const [key, data] of grid) {
+        for (const [, data] of grid) {
             const doorContainer = data.node!.getChildByName('Door');
             if (!doorContainer) continue;
 
@@ -442,14 +436,16 @@ export class MapGenerator extends Component {
 
     private _spawnCollectible(parent: Node, allNames: string[]): void {
         const gs = GameState.i;
-        if (allNames.length > 0 && allNames.every(n => gs.isCollected(n))) {
+        if (allNames.length > 0 && allNames.every(n => gs.isCollected(n) || this._assignedThisRun.has(n))) {
             gs.collected.clear();
+            this._assignedThisRun.clear();
         }
 
-        const available = this._colPrefs.filter(p => !gs.isCollected(p.name));
+        const available = this._colPrefs.filter(p => !gs.isCollected(p.name) && !this._assignedThisRun.has(p.name));
         if (available.length === 0) return;
 
         const prefab = available[Math.floor(Math.random() * available.length)];
+        this._assignedThisRun.add(prefab.name);
 
         const itemNode = instantiate(this.itemPrefab);
         itemNode.setPosition(0, 0, 0);

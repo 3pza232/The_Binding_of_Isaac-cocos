@@ -1,16 +1,25 @@
 import {
-    _decorator, Component, Node, Sprite, input, Input, EventKeyboard, KeyCode, director, isValid,
-} from 'cc';
-import { GameState } from './GameState';
+    _decorator,
+    Component,
+    Node,
+    Sprite,
+    UITransform,
+    input,
+    Input,
+    EventKeyboard,
+    KeyCode,
+    director,
+    isValid,
+} from "cc";
+import { GameState } from "./GameState";
 
 const { ccclass, property } = _decorator;
 
 const PLACE_COUNT = 5;
 
-@ccclass('DeathScreen')
+@ccclass("DeathScreen")
 export class DeathScreen extends Component {
-
-    @property({ type: Node, displayName: 'Death_UI' })
+    @property({ type: Node, displayName: "Death_UI" })
     deathUI: Node = null!;
 
     private _places: Node[] = [];
@@ -23,7 +32,7 @@ export class DeathScreen extends Component {
             const child = this.deathUI.getChildByName(`Death_Place_0${i}`);
             if (child) this._places.push(child);
         }
-        this._monsterSprite = this.deathUI.getChildByName('Monster')!.getComponent(Sprite)!;
+        this._monsterSprite = this.deathUI.getChildByName("Monster")!.getComponent(Sprite)!;
     }
 
     start(): void {
@@ -43,8 +52,12 @@ export class DeathScreen extends Component {
         }
 
         if (isValid(killerNode) && this._monsterSprite) {
-            const p = killerNode!.getChildByName('portrait');
-            if (p) this._monsterSprite.spriteFrame = p.getComponent(Sprite)!.spriteFrame;
+            const p = killerNode!.getChildByName("portrait");
+            if (p) {
+                this._monsterSprite.spriteFrame = p.getComponent(Sprite)!.spriteFrame;
+                this._monsterSprite.sizeMode = Sprite.SizeMode.CUSTOM;
+                this._monsterSprite.getComponent(UITransform)!.setContentSize(55, 50);
+            }
         }
 
         this.deathUI.active = true;
@@ -53,12 +66,16 @@ export class DeathScreen extends Component {
 
     private _onKey(e: EventKeyboard): void {
         if (!this.deathUI.active) return;
-        if (e.keyCode === KeyCode.ESCAPE || e.keyCode === KeyCode.ENTER || e.keyCode === KeyCode.SPACE) {
+        if (
+            e.keyCode === KeyCode.ESCAPE ||
+            e.keyCode === KeyCode.ENTER ||
+            e.keyCode === KeyCode.SPACE
+        ) {
             if (Date.now() - DeathScreen._lastLoadTime < 1000) return;
             DeathScreen._lastLoadTime = Date.now();
             GameState.i.deleteSave();
             director.resume();
-            director.loadScene('menu');
+            director.loadScene("menu");
         }
     }
 }

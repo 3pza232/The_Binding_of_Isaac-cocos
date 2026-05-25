@@ -23,6 +23,9 @@ export class SaveCollector {
             tearSpeed: gs.tearSpeed,
             fireRate: gs.fireRate,
             homingEnabled: gs.homing,
+            enemyPiercing: gs.enemyPiercing,
+            wallPiercing: gs.wallPiercing,
+            dollarBill: gs.dollarBill,
             keys: gs.keys,
             coins: gs.coins,
         };

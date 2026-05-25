@@ -322,15 +322,15 @@
       {
         "__uuid__": "212acf08-f9c3-43ef-98b4-7a86c654e59f",
         "__expectedType__": "cc.Prefab"
-      },
-      {
-        "__uuid__": "e22b9f9e-85bf-41c2-bb16-79e3a333b90c",
-        "__expectedType__": "cc.Prefab"
       }
     ],
     "bossPrefabs": [
       {
         "__uuid__": "41c1648a-95ee-4cb5-b6c6-3d880a9accbc",
+        "__expectedType__": "cc.Prefab"
+      },
+      {
+        "__uuid__": "5e3eebc1-ae12-4085-a3a5-27e08a571a65",
         "__expectedType__": "cc.Prefab"
       }
     ],
@@ -354,9 +354,9 @@
       "__uuid__": "12bead02-cacc-418d-8ef0-906072a39f78",
       "__expectedType__": "cc.TiledMapAsset"
     },
-    "totalRooms": 12,
+    "totalRooms": 8,
     "minRooms": 8,
-    "treasureRooms": 1,
+    "treasureRooms": 2,
     "shopRooms": 1,
     "nextSceneName": "start",
     "monsterMin": 1,

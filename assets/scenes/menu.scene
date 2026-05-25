@@ -957,7 +957,11 @@
     "__prefab": null,
     "collectiblePrefabs": [
       {
-        "__uuid__": "3dec8498-f4a1-4920-8974-87a54d610430",
+        "__uuid__": "5c1cb474-355a-4dc6-a230-842be4329f7d",
+        "__expectedType__": "cc.Prefab"
+      },
+      {
+        "__uuid__": "76270b4a-9cd0-427d-af72-ae43ce2bd125",
         "__expectedType__": "cc.Prefab"
       }
     ],

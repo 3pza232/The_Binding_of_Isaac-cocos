@@ -1,7 +1,8 @@
-import { sys, KeyCode, Prefab } from 'cc';
+import { sys, KeyCode, Prefab, SpriteFrame } from 'cc';
 import {
     DEFAULT_MAX_HP, DEFAULT_MOVE_SPEED, DEFAULT_TEAR_DAMAGE,
     DEFAULT_TEAR_SPEED, DEFAULT_RANGE, DEFAULT_FIRE_RATE, DEFAULT_KEYS,
+    MAX_KEYS, MAX_COINS,
 } from './Constants';
 
 // ── 存档数据结构 ──
@@ -16,6 +17,9 @@ export interface PlayerStatsData {
     tearSpeed: number;
     fireRate: number;
     homingEnabled: boolean;
+    enemyPiercing: boolean;
+    wallPiercing: boolean;
+    dollarBill: boolean;
     keys: number;
     coins: number;
 }
@@ -66,6 +70,17 @@ export class GameState {
     tearSpeed = DEFAULT_TEAR_SPEED;
     fireRate = DEFAULT_FIRE_RATE;
     homing = false;
+    enemyPiercing = false;
+    wallPiercing = false;
+    tearSf: SpriteFrame | null = null;
+
+    brimstone = false;
+    brimCharge = 0;
+    brimState = 0;
+    brimCharged = false;  // 蓄满标记（跨房间保持）
+    brimFired = false;
+    brimLaserTimer = 0;
+    dollarBill = false;  // 仅用于存档，其他通用效果都走 registerEffect
 
     // ── 资源 ──
 
@@ -93,6 +108,14 @@ export class GameState {
     // ── 菜单 → 游戏过渡标记 ──
 
     shouldContinue = false;
+
+    // ── 通用持续效果回调（藏品可注册帧更新）──
+
+    private _effects: Array<(dt: number) => void> = [];
+
+    onFrame(fn: (dt: number) => void): void { this._effects.push(fn); }
+    tickEffects(dt: number): void { for (const fn of this._effects) fn(dt); }
+    clearEffects(): void { this._effects = []; }
 
     // ── 存档 ──
 
@@ -133,6 +156,11 @@ export class GameState {
         this.tearSpeed = DEFAULT_TEAR_SPEED;
         this.fireRate = DEFAULT_FIRE_RATE;
         this.homing = false;
+        this.enemyPiercing = false;
+        this.wallPiercing = false;
+        this.tearSf = null;
+        this.dollarBill = false;
+        this.clearEffects();
         this.keys = DEFAULT_KEYS;
         this.coins = 0;
         this.collected.clear();
@@ -152,6 +180,9 @@ export class GameState {
         this.tearSpeed = s.tearSpeed;
         this.fireRate = s.fireRate;
         this.homing = s.homingEnabled;
+        this.enemyPiercing = s.enemyPiercing;
+        this.wallPiercing = s.wallPiercing;
+        this.dollarBill = s.dollarBill;
         this.keys = s.keys;
         this.coins = s.coins;
     }
@@ -165,9 +196,9 @@ export class GameState {
     setMaxHp(n: number): void { this.maxHp = Math.min(n, 16); }
 
     spendKey(n = 1): boolean { if (this.keys < n) return false; this.keys -= n; return true; }
-    addKeys(n: number): void { this.keys += n; }
+    addKeys(n: number): void { this.keys = Math.min(this.keys + n, MAX_KEYS); }
     spendCoin(n: number): boolean { if (this.coins < n) return false; this.coins -= n; return true; }
-    addCoins(n: number): void { this.coins += n; }
+    addCoins(n: number): void { this.coins = Math.min(this.coins + n, MAX_COINS); }
 
     markCollected(name: string): void { this.collected.add(name); }
     isCollected(name: string): boolean { return this.collected.has(name); }

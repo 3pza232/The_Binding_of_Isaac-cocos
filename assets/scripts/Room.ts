@@ -1,8 +1,8 @@
-import { _decorator, Component, Enum, Node, UITransform, Sprite, RigidBody2D } from 'cc';
-import { DoorController } from './DoorController';
-import { Monster } from './Monster';
-import { BossIntroManager } from './BossIntroManager';
-import { SceneDoor } from './SceneDoor';
+import { _decorator, Component, Enum, Node, UITransform, Sprite, RigidBody2D } from "cc";
+import { DoorController } from "./DoorController";
+import { Monster } from "./Monster";
+import { BossIntroManager } from "./BossIntroManager";
+import { SceneDoor } from "./SceneDoor";
 
 const { ccclass, property } = _decorator;
 
@@ -16,22 +16,21 @@ export enum RoomType {
 
 const DOOR_DEFAULT_OPEN = new Set<RoomType>([RoomType.START, RoomType.TREASURE, RoomType.SHOP]);
 
-@ccclass('Room')
+@ccclass("Room")
 export class Room extends Component {
-
-    @property({ type: Enum(RoomType), displayName: '房间类型' })
+    @property({ type: Enum(RoomType), displayName: "房间类型" })
     roomType: RoomType = RoomType.MONSTER;
 
-    @property({ type: Node, displayName: 'Boss血条节点' })
+    @property({ type: Node, displayName: "Boss血条节点" })
     bossHealthBar: Node | null = null;
 
-    @property({ displayName: '血条平滑时间(秒)', range: [0.05, 1, 0.05], slide: true })
+    @property({ displayName: "血条平滑时间(秒)", range: [0.05, 1, 0.05], slide: true })
     barSmoothTime = 0.2;
 
-    @property({ type: Node, displayName: '通关门节点' })
+    @property({ type: Node, displayName: "通关门节点" })
     nextDoor: Node | null = null;
 
-    @property({ displayName: '通关门延迟(秒)' })
+    @property({ displayName: "通关门延迟(秒)" })
     nextDoorDelay = 2;
 
     // ── 状态 ──
@@ -41,17 +40,27 @@ export class Room extends Component {
     private _cleared = false;
     private _itemTaken = false;
 
-    get cleared(): boolean { return this._cleared; }
-    get isActive(): boolean { return this._isActive; }
-    get itemTaken(): boolean { return this._itemTaken; }
-    get doors(): DoorController[] { return this._doors; }
+    get cleared(): boolean {
+        return this._cleared;
+    }
+    get isActive(): boolean {
+        return this._isActive;
+    }
+    get itemTaken(): boolean {
+        return this._itemTaken;
+    }
+    get doors(): DoorController[] {
+        return this._doors;
+    }
 
     restoreState(cleared: boolean, itemTaken: boolean): void {
         this._cleared = cleared;
         this._itemTaken = itemTaken;
     }
 
-    markItemTaken(): void { this._itemTaken = true; }
+    markItemTaken(): void {
+        this._itemTaken = true;
+    }
 
     // ── Boss 血条 ──
 
@@ -64,7 +73,7 @@ export class Room extends Component {
     // ── 生命周期 ──
 
     start(): void {
-        const doorContainer = this.node.getChildByName('Door');
+        const doorContainer = this.node.getChildByName("Door");
         if (doorContainer) {
             for (const child of doorContainer.children) {
                 const dc = child.getComponent(DoorController);
@@ -74,7 +83,7 @@ export class Room extends Component {
 
         // 初始化 Boss 血条
         if (this.bossHealthBar) {
-            const bar02 = this.bossHealthBar.getChildByName('Bar_02');
+            const bar02 = this.bossHealthBar.getChildByName("Bar_02");
             if (bar02) {
                 this._bar02Ut = bar02.getComponent(UITransform);
                 this._bar02Sprite = bar02.getComponent(Sprite);
@@ -92,7 +101,7 @@ export class Room extends Component {
 
         // 从 MapGenerator 获取下一场景名，传给 SceneDoor
         if (this.nextDoor && this.roomType === RoomType.BOSS) {
-            const mg = this.node.parent?.getComponent('MapGenerator') as any;
+            const mg = this.node.parent?.getComponent("MapGenerator") as any;
             if (mg?.nextSceneName) {
                 const sd = this.nextDoor.getComponent(SceneDoor);
                 if (sd) sd.sceneName = mg.nextSceneName;
@@ -144,7 +153,7 @@ export class Room extends Component {
         this.node.active = true;
 
         if (this.roomType === RoomType.BOSS && !this._cleared) {
-            const mgr = this.node.getChildByName('RoomManager');
+            const mgr = this.node.getChildByName("RoomManager");
             if (mgr) {
                 for (const child of mgr.children) {
                     const m = child.getComponent(Monster);
@@ -217,8 +226,8 @@ export class Room extends Component {
     private _applyNextDoorFinal(): void {
         if (!this.nextDoor) return;
         this.nextDoor.active = true;
-        const d1 = this.nextDoor.getChildByName('Door_01');
-        const d2 = this.nextDoor.getChildByName('Door_02');
+        const d1 = this.nextDoor.getChildByName("Door_01");
+        const d2 = this.nextDoor.getChildByName("Door_02");
         if (d1) d1.active = false;
         if (d2) d2.active = true;
         const rb = this.nextDoor.getComponent(RigidBody2D);

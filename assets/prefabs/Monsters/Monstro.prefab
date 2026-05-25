@@ -1,7 +1,7 @@
 [
   {
     "__type__": "cc.Prefab",
-    "_name": "Bumbino",
+    "_name": "Monstro",
     "_objFlags": 0,
     "__editorExtras__": {},
     "_native": "",
@@ -13,7 +13,7 @@
   },
   {
     "__type__": "cc.Node",
-    "_name": "Bumbino",
+    "_name": "Monstro",
     "_objFlags": 0,
     "__editorExtras__": {},
     "_parent": null,
@@ -142,8 +142,8 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 56,
-      "height": 55
+      "width": 67,
+      "height": 46
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -154,7 +154,7 @@
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "38RRCI/XVFWa2POXaS2ErU"
+    "fileId": "c5UGmH7a5Jap45NJ+vmT3b"
   },
   {
     "__type__": "cc.Sprite",
@@ -179,7 +179,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "bfd2b89d-18eb-49e8-8f94-42b3cd68e50f@f9941",
+      "__uuid__": "77112fcf-7f7f-41ac-a303-6f0c364e54f9@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -199,7 +199,7 @@
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "4fBP34ub1JsJPZV9bFv0/t"
+    "fileId": "b3A5dA3udAjrGnNMpyPDWm"
   },
   {
     "__type__": "cc.Animation",
@@ -216,23 +216,15 @@
     "playOnLoad": false,
     "_clips": [
       {
-        "__uuid__": "2864f7a7-5da9-4e80-a08c-6d61c46e4d76",
+        "__uuid__": "8f129b8c-9bf1-483b-ba99-56cd4296b177",
         "__expectedType__": "cc.AnimationClip"
       },
       {
-        "__uuid__": "ce328333-d08b-43cf-841d-235517b4bba6",
+        "__uuid__": "2eb517d9-4531-4865-9a7e-4f5a19831590",
         "__expectedType__": "cc.AnimationClip"
       },
       {
-        "__uuid__": "49e7da68-dfd9-4df0-8b4f-3b61ca10582a",
-        "__expectedType__": "cc.AnimationClip"
-      },
-      {
-        "__uuid__": "225ebedc-5868-484d-aecc-947309661ca7",
-        "__expectedType__": "cc.AnimationClip"
-      },
-      {
-        "__uuid__": "8fb39bc8-9dde-4174-873a-4df6f962caeb",
+        "__uuid__": "ce0390ab-8304-434e-866b-f7012054831d",
         "__expectedType__": "cc.AnimationClip"
       }
     ],
@@ -241,7 +233,7 @@
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "0b4wP6XXNPLasSA1nnE45f"
+    "fileId": "feDWMdcwZJTpTgIYk+0MlD"
   },
   {
     "__type__": "cc.PrefabInfo",
@@ -251,7 +243,7 @@
     "asset": {
       "__id__": 0
     },
-    "fileId": "aavTgckPZMJa2KibnL0VhA",
+    "fileId": "cb+ldKD+1DiYG+9y9V0QAk",
     "instance": null,
     "targetOverrides": null,
     "nestedPrefabInstanceRoots": null
@@ -320,8 +312,8 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 133,
-      "height": 38
+      "width": 92,
+      "height": 42
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -332,7 +324,7 @@
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "cbLAam5wpITLC6xIVsTALF"
+    "fileId": "1c+qzYwJxEtrdsMU1BdQl/"
   },
   {
     "__type__": "cc.Sprite",
@@ -357,7 +349,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "6dc4536f-0d32-43f1-94b4-bf624736085c@f9941",
+      "__uuid__": "16f0702f-216d-4196-9f91-4ef6ceb4ade4@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -377,7 +369,7 @@
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "1bZ6zLladChoW5zV0N1FpD"
+    "fileId": "deTEStf1xO0qMucf+K1vC4"
   },
   {
     "__type__": "cc.PrefabInfo",
@@ -387,7 +379,7 @@
     "asset": {
       "__id__": 0
     },
-    "fileId": "5aEh4j201KTLd5Q5nPqKtW",
+    "fileId": "ca6rfaDk1PrICJw7DV2kZr",
     "instance": null,
     "targetOverrides": null,
     "nestedPrefabInstanceRoots": null
@@ -456,8 +448,8 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 137,
-      "height": 105
+      "width": 135,
+      "height": 115
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -468,7 +460,7 @@
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "f3ltJLfVJDbb/6ba2fEVmh"
+    "fileId": "7dwoD6VqFH05bCe4e7jhEw"
   },
   {
     "__type__": "cc.Sprite",
@@ -493,7 +485,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "1f655f50-e48b-433b-a652-d7d1213d3679@f9941",
+      "__uuid__": "511b8445-c9c6-45d5-8e4d-646529133fc4@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -513,7 +505,7 @@
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "94TGTZrINP85b5p4W8MGQn"
+    "fileId": "d3GHPPnmhCb7lo0VvqkYzE"
   },
   {
     "__type__": "cc.PrefabInfo",
@@ -523,7 +515,7 @@
     "asset": {
       "__id__": 0
     },
-    "fileId": "22qtw1JjlMFrS0r/+QtHQx",
+    "fileId": "05MUdn4UhL2axwSBRBfN8w",
     "instance": null,
     "targetOverrides": null,
     "nestedPrefabInstanceRoots": null
@@ -554,7 +546,7 @@
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "79xlLs0AVMKJNfoVmrggh+"
+    "fileId": "8fSbB76fxL3od9RNyTpLzt"
   },
   {
     "__type__": "cc.RigidBody2D",
@@ -588,7 +580,7 @@
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "1fHRM39TNF16T9FGewZVDr"
+    "fileId": "350ZnXOXtO/pe86FwW3zSx"
   },
   {
     "__type__": "cc.BoxCollider2D",
@@ -610,22 +602,22 @@
     "_restitution": 0,
     "_offset": {
       "__type__": "cc.Vec2",
-      "x": 0.3,
-      "y": -1.4
+      "x": -0.7,
+      "y": -5.5
     },
     "_size": {
       "__type__": "cc.Size",
-      "width": 38.9,
-      "height": 34.4
+      "width": 54.2,
+      "height": 26.3
     },
     "_id": ""
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "3cmIO4UyhLtL6mvAG1OFQf"
+    "fileId": "3540M28nhPAJOgUPvqDRRf"
   },
   {
-    "__type__": "d1c45LCGa5GaZFxszK8X0e+",
+    "__type__": "e8e32YQAItLqpXavtUi9var",
     "_name": "",
     "_objFlags": 0,
     "__editorExtras__": {},
@@ -636,55 +628,60 @@
     "__prefab": {
       "__id__": 29
     },
-    "effectNodes": [
-      null
-    ],
-    "walkAnimX": "Bumbino_Walk",
-    "walkAnimY": "Bumbino_Walk",
-    "idleAnim": "Bumibino_Idle",
-    "deathAnim": "Bumbino_Defeated",
+    "effectNodes": [],
+    "walkAnimX": "Jump",
+    "walkAnimY": "Jump",
+    "idleAnim": "",
+    "deathAnim": "Die",
     "deathEffectAnim": "",
-    "atkAnimX": "Bumbino_Attack",
-    "atkAnimY": "Bumbino_Attack",
+    "atkAnimX": "Attack",
+    "atkAnimY": "Attack",
     "atkHeadAnimX": "",
     "atkHeadAnimY": "",
     "atkEffectAnim": "",
     "atkRange": 250,
-    "atkCooldown": 8,
+    "atkCooldown": 5,
     "atkFreeze": 0,
     "idleHorizontal": {
-      "__uuid__": "bfd2b89d-18eb-49e8-8f94-42b3cd68e50f@f9941",
+      "__uuid__": "77112fcf-7f7f-41ac-a303-6f0c364e54f9@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "idleVertical": {
-      "__uuid__": "bfd2b89d-18eb-49e8-8f94-42b3cd68e50f@f9941",
+      "__uuid__": "77112fcf-7f7f-41ac-a303-6f0c364e54f9@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "hurtSounds": [],
-    "deathSounds": [
-      {
-        "__uuid__": "58a47df2-17c6-4f41-b7d0-31d1fc4bb037",
-        "__expectedType__": "cc.AudioClip"
-      }
-    ],
+    "deathSounds": [],
     "atkSounds": [],
     "sfxVolume": 1,
     "spriteNode": {
       "__id__": 2
     },
-    "chargeSpeedMul": 4,
-    "chargeDuration": 0.5,
+    "bulletPrefab": {
+      "__uuid__": "3aef1408-992d-4672-9092-26839d19b360",
+      "__expectedType__": "cc.Prefab"
+    },
+    "initialDelay": 1,
     "trackRange": 350,
-    "moveSpeed": 2,
-    "wanderRatio": 0.2,
-    "maxHp": 385,
+    "jumpDuration": 1.45,
+    "maxJumpDist": 350,
+    "pauseDuration": 1,
+    "wanderDistance": 100,
+    "bulletSpeed": 10,
+    "roomHalfW": 380,
+    "roomHalfH": 230,
+    "atkDuration": 0.6,
+    "atkBulletMin": 10,
+    "atkBulletMax": 15,
+    "atkScatterAngle": 45,
+    "maxHp": 250,
     "hitFlashDuration": 0.3,
     "deathFadeDuration": 2,
     "_id": ""
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "cb37CQDbVGOpIM9R7XmJ+3"
+    "fileId": "e7RkgcQ09MQ75liFqjqWxt"
   },
   {
     "__type__": "cc.PrefabInfo",
@@ -694,7 +691,7 @@
     "asset": {
       "__id__": 0
     },
-    "fileId": "03evhWqhtD5rvdmuAcCoaA",
+    "fileId": "e0Fbry+vtKZ7tx01PrXT7s",
     "instance": null,
     "targetOverrides": null
   }

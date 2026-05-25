@@ -1,17 +1,13 @@
 import {
-    _decorator, Component, Node, RigidBody2D, Animation,
+    _decorator, Component, Node, RigidBody2D, Animation, Sprite,
     Collider2D, Contact2DType, AudioClip, AudioSource, v2, Vec3, Vec2,
 } from 'cc';
 import { GROUP } from './Constants';
+import { DollarBill } from './DollarBill';
 
 const { ccclass } = _decorator;
 
 type TearState = 'fly' | 'descend' | 'break';
-
-const BREAK_GROUPS: Record<number, true> = {
-    [GROUP.MONSTER]: true,
-    [GROUP.WALL]: true,
-};
 
 /**
  * 泪弹行为组件，挂载于 Tear 预制体。
@@ -25,7 +21,8 @@ export class Tear extends Component {
     private _range = 0;
     private _fallSpeed = 0;
     private _fallStartDist = 0;
-    private _piercing = false;
+    private _enemyPiercing = false;
+    private _wallPiercing = false;
     private _isHorizontal = false;
     private _damage = 1;
     private _homing = false;
@@ -38,6 +35,7 @@ export class Tear extends Component {
     private _rigidBody: RigidBody2D = null!;
     private _animation: Animation = null!;
     private _audioSrc: AudioSource = null!;
+    private _bodySprite: Sprite | null = null;
     private _state: TearState = "fly";
     private _startPos = new Vec3();
     private _breakTimer = 0;
@@ -49,6 +47,7 @@ export class Tear extends Component {
         this._rigidBody = this.node.getComponent(RigidBody2D)!;
         const bodyNode = this.node.getChildByName("Body")!;
         this._animation = bodyNode.getComponent(Animation)!;
+        this._bodySprite = bodyNode.getComponent(Sprite);
 
         const collider = this.node.getComponent(Collider2D)!;
         if (collider) {
@@ -67,7 +66,8 @@ export class Tear extends Component {
         range: number,
         fallSpeed: number,
         fallStartRatio: number,
-        piercing: boolean,
+        enemyPiercing: boolean,
+        wallPiercing: boolean,
         momentumX: number,
         momentumY: number,
         damage: number,
@@ -79,7 +79,8 @@ export class Tear extends Component {
         this._range = range;
         this._fallSpeed = fallSpeed;
         this._fallStartDist = range * fallStartRatio;
-        this._piercing = piercing;
+        this._enemyPiercing = enemyPiercing;
+        this._wallPiercing = wallPiercing;
         this._damage = damage;
         this._homing = homing;
         this._breakSnd = breakSnd;
@@ -88,8 +89,14 @@ export class Tear extends Component {
         this._vel2.set(dir.x * speed + momentumX, dir.y * speed + momentumY);
         this._rigidBody.linearVelocity = this._vel2;
 
+        // 旋转 Sprite 朝向飞行方向
+        const bodyNode = this.node.getChildByName('Body');
+        if (bodyNode) {
+            bodyNode.angle = Math.atan2(dir.y, dir.x) * (180 / Math.PI);
+        }
+
         const collider = this.node.getComponent(Collider2D);
-        if (collider) collider.sensor = piercing;
+        if (collider) collider.sensor = enemyPiercing || wallPiercing;
 
         this._state = "fly";
         this.node.getWorldPosition(this._startPos);
@@ -107,6 +114,10 @@ export class Tear extends Component {
             this._breakTimer -= dt;
             if (this._breakTimer <= 0) this.node.destroy();
             return;
+        }
+
+        if (DollarBill.active && this._bodySprite) {
+            this._bodySprite.color = DollarBill.color;
         }
 
         // 基于实际世界坐标计算已飞行距离（与怪物追踪半径等统一坐标系）
@@ -144,7 +155,7 @@ export class Tear extends Component {
         let nearestD2 = Infinity;
         room.walk((n) => {
             const m = n.getComponent('Monster') as any;
-            if (m && m.alive) {
+            if (m && m.alive && m.isTargetable) {
                 const dx = n.worldPosition.x - this.node.worldPosition.x;
                 const dy = n.worldPosition.y - this.node.worldPosition.y;
                 const d2 = dx * dx + dy * dy;
@@ -194,10 +205,12 @@ export class Tear extends Component {
     // ── 碰撞（可扩展：新增破裂分组只需在 BREAK_GROUPS 加一行） ──
 
     private _onBeginContact(_self: Collider2D, other: Collider2D): void {
-        if (this._piercing || this._state === "break") return;
-        if (BREAK_GROUPS[other.group]) {
-            // TODO: 后续在此触发伤害/效果回调
-            this._startBreak();
+        if (this._state === 'break') return;
+
+        if (other.group === GROUP.MONSTER) {
+            if (!this._enemyPiercing) this._startBreak();
+        } else if (other.group === GROUP.WALL) {
+            if (!this._wallPiercing) this._startBreak();
         }
     }
 }

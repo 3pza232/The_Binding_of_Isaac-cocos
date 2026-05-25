@@ -1,22 +1,32 @@
-import { _decorator, Component, RigidBody2D, Animation, Collider2D, Contact2DType, Vec3, AudioClip, AudioSource } from 'cc';
-import { GROUP } from './Constants';
-import { PlayerHealth } from './PlayerHealth';
+import {
+    _decorator,
+    Component,
+    RigidBody2D,
+    Animation,
+    Collider2D,
+    Contact2DType,
+    Vec3,
+    AudioClip,
+    AudioSource,
+    Node,
+} from "cc";
+import { GROUP } from "./Constants";
+import { PlayerHealth } from "./PlayerHealth";
 
 const { ccclass, property } = _decorator;
 
-@ccclass('EnemyBullet')
+@ccclass("EnemyBullet")
 export class EnemyBullet extends Component {
-
-    @property({ displayName: '射程' })
+    @property({ displayName: "射程" })
     range = 250;
 
-    @property({ type: AudioClip, displayName: '发射音效' })
+    @property({ type: AudioClip, displayName: "发射音效" })
     fireSound: AudioClip | null = null;
 
-    @property({ type: AudioClip, displayName: '破裂音效' })
+    @property({ type: AudioClip, displayName: "破裂音效" })
     breakSound: AudioClip | null = null;
 
-    @property({ displayName: '音效音量', range: [0, 1, 0.05], slide: true })
+    @property({ displayName: "音效音量", range: [0, 1, 0.05], slide: true })
     sfxVolume = 1;
 
     /** 发射此子弹的怪物（死亡面板用于获取肖像） */
@@ -33,7 +43,7 @@ export class EnemyBullet extends Component {
         this._rigidBody = this.node.getComponent(RigidBody2D)!;
         this._audioSrc = this.node.getComponent(AudioSource) || this.node.addComponent(AudioSource);
 
-        const sprite = this.node.getChildByName('Sprite');
+        const sprite = this.node.getChildByName("Sprite");
         if (sprite) this._anim = sprite.getComponent(Animation);
 
         const collider = this.node.getComponent(Collider2D);
@@ -74,7 +84,7 @@ export class EnemyBullet extends Component {
         if (other.group === GROUP.PLAYER) {
             const ph = other.node.getComponent(PlayerHealth);
             if (ph && ph.alive && !ph.isInvulnerable) {
-                ph.takeHit(this.owner || this.node);
+                ph.takeHit((this.owner || this.node) as Node);
             }
             this._break();
         }
@@ -92,7 +102,7 @@ export class EnemyBullet extends Component {
             if (this._rigidBody && this._rigidBody.isValid) {
                 this._rigidBody.enabled = false;
             }
-            if (this._anim) this._anim.play('blood_tear_break');
+            if (this._anim) this._anim.play("blood_tear_break");
             this.scheduleOnce(() => {
                 if (this.node && this.node.isValid) this.node.destroy();
             }, 1);

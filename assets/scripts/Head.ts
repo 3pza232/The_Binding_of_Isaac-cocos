@@ -31,6 +31,9 @@ export class Head extends Component {
         return DIR_VEC[d] ?? null;
     }
 
+    /** 最后松开的射击方向（蓄力激光用），无箭头键按下时有效 */
+    fireDir: Vec2 | null = null;
+
     private _headNode: Node = null!;
     private _animation: Animation = null!;
     private _sprite: Sprite = null!;
@@ -49,6 +52,18 @@ export class Head extends Component {
         input.on(Input.EventType.KEY_DOWN, this._onKeyDown, this);
         input.on(Input.EventType.KEY_UP, this._onKeyUp, this);
         this._pressTimes = new Map(GameState.i.heldAimKeys);
+        // 清理传门期间可能丢失 release 事件的过时按键（>0.5s 前按下的视为残留）
+        const now = Date.now();
+        for (const [k, ts] of this._pressTimes) {
+            if (now - ts > 500) {
+                this._pressTimes.delete(k);
+                GameState.i.heldAimKeys.delete(k);
+            }
+        }
+        if (this._pressTimes.size > 0) {
+            const k = this._latestKey();
+            if (k !== null) this._applyDir(KEY_TO_DIR[k]);
+        }
     }
 
     onDestroy(): void {
@@ -63,6 +78,7 @@ export class Head extends Component {
     private _onKeyDown(e: EventKeyboard): void {
         const d = KEY_TO_DIR[e.keyCode];
         if (d === undefined) return;
+        this.fireDir = null;  // 新键按下 → 取消蓄力方向
         const ts = Date.now();
         this._pressTimes.set(e.keyCode, ts);
         GameState.i.heldAimKeys.set(e.keyCode, ts);
@@ -76,6 +92,7 @@ export class Head extends Component {
         GameState.i.heldAimKeys.delete(e.keyCode);
 
         if (this._pressTimes.size === 0) {
+            this.fireDir = DIR_VEC[d] ?? null;  // 最后松键 → 蓄力方向
             this._lastFollowFacing = '';
             this._followBody();
         } else {

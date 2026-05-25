@@ -102,7 +102,7 @@ export abstract class Monster extends Component {
 
     // ── 状态 ──
 
-    protected _state: MonsterState = 'idle-stand';
+    protected _aiState: MonsterState = 'idle-stand';
     protected _facing: 'right' | 'left' | 'down' | 'up' = 'down';
     protected _currentAnim: string | null = null;
     protected _standTimer = 0;
@@ -116,6 +116,7 @@ export abstract class Monster extends Component {
     protected _alive = true;
     protected _flashTimer = 0;
     protected _deathTimer = 0;
+    private _hitTears = new Set<Node>();
 
     // ── 子类实现 ──
 
@@ -133,6 +134,8 @@ export abstract class Monster extends Component {
     get alive(): boolean { return this._alive; }
     get currentHp(): number { return this._hp; }
     get hpMax(): number { return this._maxHp; }
+    /** 是否可被泪弹追踪（子类可覆写实现跳跃无敌等） */
+    get isTargetable(): boolean { return this._alive; }
 
     // ── 生命周期 ──
 
@@ -172,6 +175,10 @@ export abstract class Monster extends Component {
         }
     }
 
+    onDisable(): void {
+        this._hitTears.clear();
+    }
+
     update(dt: number): void {
         if (!this._alive) { this._deathUpdate(dt); return; }
         this._flashUpdate(dt);
@@ -198,18 +205,20 @@ export abstract class Monster extends Component {
         if (!this._alive) return;
         const tear = other.node.getComponent('Tear') as any;
         if (tear) {
-            this._takeDamage(tear.damage ?? 1);
+            if (this._hitTears.has(other.node)) return;
+            this._hitTears.add(other.node);
+            this.takeDamage(tear.damage ?? 1);
             this._onHurtSfx();
         }
     }
 
-    protected _takeDamage(dmg: number): void {
+    takeDamage(dmg: number): void {
         this._hp -= dmg;
         this._flashTimer = this._hitFlashDuration;
         if (this._hp <= 0) this._die();
     }
 
-    private _flashUpdate(dt: number): void {
+    protected _flashUpdate(dt: number): void {
         if (this._flashTimer <= 0) return;
         this._flashTimer -= dt;
         const t = 1 - Math.max(0, this._flashTimer) / this._hitFlashDuration;
@@ -240,7 +249,7 @@ export abstract class Monster extends Component {
         this._onDeathSfx();
     }
 
-    private _deathUpdate(dt: number): void {
+    protected _deathUpdate(dt: number): void {
         this._deathTimer += dt;
         const t = Math.min(1, this._deathTimer / this._deathFadeDuration);
         const a = Math.round(255 * (1 - t));
@@ -253,7 +262,7 @@ export abstract class Monster extends Component {
     // ── 追踪 ──
 
     protected _chase(dx: number, dy: number): void {
-        this._state = 'chase';
+        this._aiState ='chase';
         const mag = Math.sqrt(dx * dx + dy * dy);
         this._vel2.set((dx / mag) * this._moveSpeed, (dy / mag) * this._moveSpeed);
         this._rigidBody.linearVelocity = this._vel2;
@@ -271,7 +280,7 @@ export abstract class Monster extends Component {
 
     // ── 攻击 ──
 
-    private _tryAttack(dx: number, dy: number, dist: number, dt: number): void {
+    protected _tryAttack(dx: number, dy: number, dist: number, dt: number): void {
         if (this.atkCooldown <= 0) return; // 未配攻击
         this._atkTimer -= dt;
         if (this._atkTimer > 0) return;
@@ -314,7 +323,7 @@ export abstract class Monster extends Component {
     // ── 闲置 / 闲逛 ──
 
     protected _idle(dt: number): void {
-        if (this._state === 'idle-wander') {
+        if (this._aiState ==='idle-wander') {
             this._wanderTimer -= dt;
             if (this._wanderTimer <= 0) { this._enterStand(); return; }
             this._vel2.set(
@@ -342,7 +351,7 @@ export abstract class Monster extends Component {
     }
 
     protected _enterStand(): void {
-        this._state = 'idle-stand';
+        this._aiState ='idle-stand';
         this._vel2.set(0, 0);
         this._rigidBody.linearVelocity = this._vel2;
         this._anim.stop();
@@ -352,7 +361,7 @@ export abstract class Monster extends Component {
     }
 
     protected _enterWander(): void {
-        this._state = 'idle-wander';
+        this._aiState ='idle-wander';
         const angle = Math.random() * Math.PI * 2;
         this._wanderDir.set(Math.cos(angle), Math.sin(angle));
         if (Math.abs(this._wanderDir.x) >= Math.abs(this._wanderDir.y)) {
@@ -366,7 +375,7 @@ export abstract class Monster extends Component {
 
     // ── 空闲 ──
 
-    private _playIdle(): void {
+    protected _playIdle(): void {
         if (this.idleAnim) {
             this._currentAnim = this.idleAnim;
             this._anim.play(this.idleAnim);

@@ -63,7 +63,13 @@ export class DoorController extends Component {
         const collider = this.node.getComponent(Collider2D);
         if (collider) {
             collider.on(Contact2DType.BEGIN_CONTACT, this._onContact, this);
+            collider.on(Contact2DType.END_CONTACT, this._onEndContact, this);
         }
+    }
+
+    private _onEndContact(_self: Collider2D, other: Collider2D): void {
+        if (other.group !== 4) return;
+        this._pendingIsaac = null;
     }
 
     update(_dt: number): void {
@@ -258,9 +264,10 @@ export class DoorController extends Component {
             return;
         }
 
-        if (!this._canTeleport) return;
         DoorController._lastTeleportTime = Date.now();
         this._pendingIsaac = other.node;
+        // 门未就绪时先记下，开完后自动传送
+        if (!this._canTeleport) return;
     }
 
     private _doTeleport(oldIsaac: Node): void {

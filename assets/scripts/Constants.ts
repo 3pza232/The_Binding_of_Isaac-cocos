@@ -24,5 +24,8 @@ export const DEFAULT_RANGE = 250;
 export const DEFAULT_FIRE_RATE = 0.5;
 export const DEFAULT_KEYS = 2;
 
+export const MAX_KEYS = 99;
+export const MAX_COINS = 99;
+
 /** 藏品槽上限 */
 export const MAX_COLLECTIBLE_SLOTS = 25;
