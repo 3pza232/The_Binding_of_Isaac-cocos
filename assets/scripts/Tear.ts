@@ -36,18 +36,20 @@ export class Tear extends Component {
     private _animation: Animation = null!;
     private _audioSrc: AudioSource = null!;
     private _bodySprite: Sprite | null = null;
+    private _bodyNode: Node | null = null;
     private _state: TearState = "fly";
     private _startPos = new Vec3();
     private _breakTimer = 0;
-    private _vel2 = v2(0, 0); // 帧复用
+    private _vel2 = v2(0, 0);
+    private _hitEnemies = new Set<Node>();
 
     // ── 生命周期 ──
 
     onLoad(): void {
         this._rigidBody = this.node.getComponent(RigidBody2D)!;
-        const bodyNode = this.node.getChildByName("Body")!;
-        this._animation = bodyNode.getComponent(Animation)!;
-        this._bodySprite = bodyNode.getComponent(Sprite);
+        this._bodyNode = this.node.getChildByName("Body")!;
+        this._animation = this._bodyNode.getComponent(Animation)!;
+        this._bodySprite = this._bodyNode.getComponent(Sprite);
 
         const collider = this.node.getComponent(Collider2D)!;
         if (collider) {
@@ -88,11 +90,10 @@ export class Tear extends Component {
         this._isHorizontal = Math.abs(dir.x) > 0.5;
         this._vel2.set(dir.x * speed + momentumX, dir.y * speed + momentumY);
         this._rigidBody.linearVelocity = this._vel2;
+        this._hitEnemies.clear();
 
-        // 旋转 Sprite 朝向飞行方向
-        const bodyNode = this.node.getChildByName('Body');
-        if (bodyNode) {
-            bodyNode.angle = Math.atan2(dir.y, dir.x) * (180 / Math.PI);
+        if (this._bodyNode) {
+            this._bodyNode.angle = Math.atan2(dir.y, dir.x) * (180 / Math.PI);
         }
 
         const collider = this.node.getComponent(Collider2D);
@@ -120,15 +121,17 @@ export class Tear extends Component {
             this._bodySprite.color = DollarBill.color;
         }
 
-        // 基于实际世界坐标计算已飞行距离（与怪物追踪半径等统一坐标系）
         const p = this.node.worldPosition;
         const dx = p.x - this._startPos.x;
         const dy = p.y - this._startPos.y;
         const traveled = Math.sqrt(dx * dx + dy * dy);
 
-        // 追尾：微调速度方向朝向最近怪物
+        // 追尾：朝向最近未击中怪物微调方向，并旋转 Sprite
         if (this._homing && this._state === "fly") {
-            this._steerTowardEnemy(dt);
+            if (this._steerTowardEnemy(dt) && this._bodyNode) {
+                const v = this._rigidBody.linearVelocity;
+                this._bodyNode.angle = Math.atan2(v.y, v.x) * (180 / Math.PI);
+            }
         }
 
         // 水平泪弹：进入下降阶段
@@ -145,15 +148,16 @@ export class Tear extends Component {
         }
     }
 
-    /** 追尾：找到最近怪物，微调速度向其偏移 */
-    private _steerTowardEnemy(dt: number): void {
+    /** 追尾：找到最近未击中怪物，steering 微调速度。返回 true 表示有目标 */
+    private _steerTowardEnemy(dt: number): boolean {
         let room = this.node.parent;
         while (room && !room.getComponent('Room')) room = room.parent;
-        if (!room) return;
+        if (!room) return false;
 
         let nearest: Node | null = null;
         let nearestD2 = Infinity;
         room.walk((n) => {
+            if (this._hitEnemies.has(n)) return;
             const m = n.getComponent('Monster') as any;
             if (m && m.alive && m.isTargetable) {
                 const dx = n.worldPosition.x - this.node.worldPosition.x;
@@ -162,18 +166,16 @@ export class Tear extends Component {
                 if (d2 < nearestD2) { nearestD2 = d2; nearest = n; }
             }
         });
-        if (!nearest) return;
+        if (!nearest) return false;
 
         const tx = nearest.worldPosition.x - this.node.worldPosition.x;
         const ty = nearest.worldPosition.y - this.node.worldPosition.y;
         const mag = Math.sqrt(tx * tx + ty * ty);
-        if (mag <= 0) return;
+        if (mag <= 0) return false;
 
-        // 目标方向 × 速度 = 期望速度
         const desiredX = (tx / mag) * this._speed;
         const desiredY = (ty / mag) * this._speed;
         const v = this._rigidBody.linearVelocity;
-        // steering: 当前速度向期望速度 lerp
         const t = Math.min(this._homingStrength * dt, 1);
         const newX = v.x + (desiredX - v.x) * t;
         const newY = v.y + (desiredY - v.y) * t;
@@ -184,6 +186,7 @@ export class Tear extends Component {
                 (newY / newMag) * this._speed,
             );
         }
+        return true;
     }
 
     // ── 破裂 ──
@@ -202,12 +205,13 @@ export class Tear extends Component {
         }
     }
 
-    // ── 碰撞（可扩展：新增破裂分组只需在 BREAK_GROUPS 加一行） ──
+    // ── 碰撞 ──
 
     private _onBeginContact(_self: Collider2D, other: Collider2D): void {
         if (this._state === 'break') return;
 
         if (other.group === GROUP.MONSTER) {
+            this._hitEnemies.add(other.node);
             if (!this._enemyPiercing) this._startBreak();
         } else if (other.group === GROUP.WALL) {
             if (!this._wallPiercing) this._startBreak();
