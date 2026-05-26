@@ -1,10 +1,13 @@
 import { _decorator, Component, Node, Prefab, instantiate, TiledMap, TiledMapAsset, SpriteFrame, AudioClip, AudioSource } from 'cc';
+import { ShopItem } from './ShopItem';
 import { Room, RoomType } from './Room';
 import { DoorController } from './DoorController';
 import { GameState, SaveData } from './GameState';
 import { CollectibleUI } from './CollectibleUI';
 import { EffectPipeline } from './EffectPipeline';
-import { DollarBill } from './DollarBill';
+import { ItemBase } from './ItemBase';
+import { DropPickup } from './DropPickup';
+import { LaserTracker } from './LaserTracker';
 import { ROOM_SPACING_X, ROOM_SPACING_Y } from './Constants';
 
 const { ccclass, property } = _decorator;
@@ -52,6 +55,9 @@ export class MapGenerator extends Component {
     @property({ type: TiledMapAsset, displayName: '商店房地图' })
     shopTmx: TiledMapAsset = null!;
 
+    @property({ displayName: '商店商品数量' })
+    shopItemCount = 2;
+
     @property({ type: TiledMapAsset, displayName: 'Boss 房地图' })
     bossTmx: TiledMapAsset = null!;
 
@@ -79,6 +85,9 @@ export class MapGenerator extends Component {
     @property({ type: AudioClip, displayName: '游戏背景音乐' })
     gameBgm: AudioClip | null = null;
 
+    @property({ type: AudioClip, displayName: 'Boss房音乐' })
+    bossBgm: AudioClip | null = null;
+
     @property({ displayName: '音乐音量', range: [0, 1, 0.05], slide: true })
     bgmVolume = 0.6;
 
@@ -93,11 +102,16 @@ export class MapGenerator extends Component {
         gs.shouldContinue = false;
 
         if (saved) {
-            gs.restoreStats(saved.stats);
             gs.collected = new Set(saved.collectedPool);
             gs.bossIntroDone = new Set(saved.bossIntroShown);
             this._restoreCollectibleEffects();
+            gs.restoreStats(saved.stats);
             this._loadFromSave(saved);
+        } else if (gs.sceneTransitioning) {
+            gs.sceneTransitioning = false;
+            gs.bossIntroDone.clear();
+            this._generate();
+            this.scheduleOnce(() => this._restoreCollectibleUI(), 0);
         } else {
             gs.reset();
             this._generate();
@@ -113,10 +127,46 @@ export class MapGenerator extends Component {
         }
     }
 
-    /** 读档后恢复动态藏品管线效果（onPickup 不会重复执行） */
+    /** 切入 Boss 音乐（Room.enter 调用） */
+    playBossMusic(): void {
+        if (!this.bossBgm) return;
+        const src = this.node.getComponent(AudioSource);
+        if (!src) return;
+        src.stop();
+        src.clip = this.bossBgm;
+        src.loop = true;
+        src.volume = this.bgmVolume;
+        src.play();
+    }
+
+    /** Boss 战结束切回主音乐（Room._setCleared 调用） */
+    playMainMusic(): void {
+        if (!this.gameBgm) return;
+        const src = this.node.getComponent(AudioSource);
+        if (!src) return;
+        src.stop();
+        src.clip = this.gameBgm;
+        src.loop = true;
+        src.volume = this.bgmVolume;
+        src.play();
+    }
+
+    /** 读档后恢复全部已收集道具的效果（临时实例化调用 onPickup，restoreStats 随后覆盖属性值）。
+     *  注意：不修改 gs.collected，因为 restoreStats 之前已从存档恢复了 collected 集合。 */
     private _restoreCollectibleEffects(): void {
         EffectPipeline.clear();
-        if (GameState.i.dollarBill) DollarBill.restoreEffect();
+        LaserTracker.clearBendModifiers();
+        GameState.i.clearEffects();
+
+        const gs = GameState.i;
+        for (const name of gs.collected) {
+            const prefab = GameState.collectiblePrefabs.find(p => p.name === name);
+            if (!prefab) continue;
+            const node = instantiate(prefab);
+            const item = node.getComponent(ItemBase);
+            if (item) (item as any).onPickup(null);
+            node.destroy();
+        }
     }
 
     // ── 读档 ──
@@ -181,12 +231,36 @@ export class MapGenerator extends Component {
             for (const [key, dataB] of grid) {
                 const mgr = dataB.node!.getChildByName('RoomManager');
                 if (!mgr) continue;
-                if (key === data.playerRoom) this._spawnIsaac(mgr);
                 const rd = data.rooms.find(r => r.key === key);
+
+                if (key === data.playerRoom) {
+                    this._spawnIsaac(mgr);
+                    const isaac = mgr.getChildByName('Isaac');
+                    if (isaac) isaac.setPosition(data.playerRoomX, data.playerRoomY, 0);
+                }
                 if (dataB.type === RoomType.MONSTER && !rd?.cleared) this._spawnMonsters(mgr);
                 if (dataB.type === RoomType.BOSS && !rd?.cleared) this._spawnBoss(mgr);
                 if (dataB.type === RoomType.TREASURE && !rd?.itemTaken) {
-                    this._spawnCollectible(mgr, this._colPrefs.map(p => p.name));
+                    if (rd?.collectiblePrefabNames?.length) {
+                        this._spawnCollectibleByName(mgr, rd.collectiblePrefabNames[0]);
+                    } else {
+                        this._spawnCollectible(mgr, this._colPrefs.map(p => p.name));
+                    }
+                }
+                // Boss 击败后未捡的藏品
+                if (dataB.type === RoomType.BOSS && rd?.cleared && !rd?.itemTaken && rd?.collectiblePrefabNames?.length) {
+                    this._spawnCollectibleByName(mgr, rd.collectiblePrefabNames[0]);
+                }
+                if (dataB.type === RoomType.SHOP) {
+                    if (rd?.collectiblePrefabNames?.length) {
+                        this._spawnShopFromSave(mgr, rd.collectiblePrefabNames);
+                    } else {
+                        this._spawnShop(mgr);
+                    }
+                }
+                // 生成掉落物
+                if (rd?.drops && rd.drops.length > 0) {
+                    this._spawnDropsFromSave(mgr, rd.drops);
                 }
             }
 
@@ -217,6 +291,16 @@ export class MapGenerator extends Component {
         return GameState.collectiblePrefabs;
     }
 
+    /** 场景过渡后恢复藏品栏 UI（从 gs.collected 重建） */
+    private _restoreCollectibleUI(): void {
+        const gs = GameState.i;
+        if (gs.collected.size === 0) return;
+        const sfMap = this._buildCollectibleSfMap();
+        const cui = this.node.parent?.parent?.getChildByName('Canvas-UI')
+            ?.getChildByName('Collectible_UI')?.getComponent(CollectibleUI);
+        if (cui) cui.restoreFromNames([...gs.collected], sfMap);
+    }
+
     private _buildCollectibleSfMap(): Map<string, SpriteFrame> {
         const m = new Map<string, SpriteFrame>();
         for (const p of this._colPrefs) {
@@ -238,8 +322,9 @@ export class MapGenerator extends Component {
         this._placeBoss(grid);
         this._addSpecialRooms(grid);
 
-        if (grid.size < this.minRooms) {
-            console.warn(`[MapGenerator] 怪物房仅 ${grid.size - this.treasureRooms - this.shopRooms} 间（目标 ≥ ${this.minRooms}）`);
+        if (grid.size - 1 < this.minRooms) {  // -1: BOSS 为额外房间
+            const monsterCount = grid.size - 1 - this.treasureRooms - this.shopRooms;
+            console.warn(`[MapGenerator] 怪物房仅 ${monsterCount} 间（目标 ≥ ${this.minRooms}）`);
         }
 
         this._instantiateRooms(grid);
@@ -296,16 +381,29 @@ export class MapGenerator extends Component {
         }
     }
 
+    /** 在最远树叶 MONSTER 房旁新增 Boss 房（保证 Boss 只有一扇门） */
     private _placeBoss(grid: Map<string, RoomData>): void {
-        let bossKey = '';
+        let parentKey = '';
         let maxDist = -1;
         for (const [key, data] of grid) {
-            if (data.type !== RoomType.MONSTER) continue;
+            if (data.type !== RoomType.MONSTER || data.links.size !== 1) continue;
             const dist = Math.abs(data.x) + Math.abs(data.y);
-            if (dist > maxDist) { maxDist = dist; bossKey = key; }
+            if (dist > maxDist) { maxDist = dist; parentKey = key; }
         }
-        const boss = grid.get(bossKey);
-        if (boss) boss.type = RoomType.BOSS;
+        if (!parentKey) return;
+
+        const parent = grid.get(parentKey)!;
+        const dirs = DIRS.filter(d => {
+            const [dx, dy] = DIR_VEC[d];
+            return !grid.has(this._key(parent.x + dx, parent.y + dy));
+        });
+        if (dirs.length === 0) return;
+
+        const [dx, dy] = DIR_VEC[dirs[Math.floor(Math.random() * dirs.length)]];
+        const bossKey = this._key(parent.x + dx, parent.y + dy);
+        const boss = this._makeRoom(parent.x + dx, parent.y + dy, RoomType.BOSS);
+        grid.set(bossKey, boss);
+        this._link(parent, bossKey, boss, parentKey);
     }
 
     /** 追加宝箱房 / 商店房到树叶末端（额外房间，不计入 totalRooms） */
@@ -429,6 +527,9 @@ export class MapGenerator extends Component {
                 case RoomType.TREASURE:
                     this._spawnCollectible(mgr, allNames);
                     break;
+                case RoomType.SHOP:
+                    this._spawnShop(mgr);
+                    break;
             }
         }
     }
@@ -478,6 +579,113 @@ export class MapGenerator extends Component {
         itemNode.addChild(collectNode);
 
         parent.addChild(itemNode);
+    }
+
+    private _spawnShop(parent: Node): void {
+        const gs = GameState.i;
+
+        const spacing = 120;
+        const startX = -(this.shopItemCount - 1) * spacing / 2;
+
+        for (let i = 0; i < this.shopItemCount; i++) {
+            // 每格重新过滤：排除已收集 + 本层已分配（含前面格子刚选的）
+            let pool = this._colPrefs.filter(
+                p => !gs.isCollected(p.name) && !this._assignedThisRun.has(p.name),
+            );
+            // 去重后不够 → 退到仅排除已收集（允许本层重复）
+            if (pool.length === 0) {
+                pool = this._colPrefs.filter(p => !gs.isCollected(p.name));
+            }
+            if (pool.length === 0) break;
+
+            const prefab = pool[Math.floor(Math.random() * pool.length)];
+            this._assignedThisRun.add(prefab.name);
+
+            const itemNode = instantiate(this.itemPrefab);
+            itemNode.setPosition(startX + i * spacing, 0, 0);
+
+            const collectNode = instantiate(prefab);
+            itemNode.addChild(collectNode);
+
+            itemNode.getComponent(ShopItem)!.initShop();
+
+            parent.addChild(itemNode);
+        }
+    }
+
+    /** 按名称数组生成商店藏品（读档用） */
+    private _spawnShopFromSave(parent: Node, names: string[]): void {
+        const spacing = 120;
+        const startX = -(names.length - 1) * spacing / 2;
+
+        for (let i = 0; i < names.length; i++) {
+            const prefab = this._colPrefs.find(p => p.name === names[i]);
+            if (!prefab) continue;
+            this._assignedThisRun.add(names[i]);
+
+            const itemNode = instantiate(this.itemPrefab);
+            itemNode.setPosition(startX + i * spacing, 0, 0);
+
+            const collectNode = instantiate(prefab);
+            itemNode.addChild(collectNode);
+
+            itemNode.getComponent(ShopItem)!.initShop();
+
+            parent.addChild(itemNode);
+        }
+    }
+
+    /** Boss 击败后掉落一个免费藏品（Room._setCleared 调用） */
+    spawnBossDrop(roomNode: Node): void {
+        const gs = GameState.i;
+        const pool = this._colPrefs.filter(
+            p => !gs.isCollected(p.name) && !this._assignedThisRun.has(p.name),
+        );
+        if (pool.length === 0) return;
+
+        const prefab = pool[Math.floor(Math.random() * pool.length)];
+        this._assignedThisRun.add(prefab.name);
+
+        const mgr = roomNode.getChildByName('RoomManager');
+        if (!mgr) return;
+
+        const itemNode = instantiate(this.itemPrefab);
+        itemNode.setPosition(0, 0, 0);
+
+        const collectNode = instantiate(prefab);
+        itemNode.addChild(collectNode);
+
+        mgr.addChild(itemNode);
+    }
+
+    /** 按名称生成指定藏品（读档用） */
+    private _spawnCollectibleByName(parent: Node, name: string): void {
+        const prefab = this._colPrefs.find(p => p.name === name);
+        if (!prefab) return;
+        this._assignedThisRun.add(name);
+
+        const itemNode = instantiate(this.itemPrefab);
+        itemNode.setPosition(0, 0, 0);
+
+        const collectNode = instantiate(prefab);
+        itemNode.addChild(collectNode);
+
+        parent.addChild(itemNode);
+    }
+
+    /** 按存档数据生成掉落物（读档用） */
+    private _spawnDropsFromSave(mgr: Node, drops: { type: 'coin' | 'key'; x: number; y: number; amount: number }[]): void {
+        const room = mgr.parent?.getComponent(Room);
+        if (!room) return;
+        for (const d of drops) {
+            const prefab = d.type === 'coin' ? room.coinPrefab : room.keyPrefab;
+            if (!prefab) continue;
+            const node = instantiate(prefab);
+            node.setPosition(d.x, d.y, 0);
+            const dp = node.getComponent(DropPickup);
+            if (dp) dp.amount = d.amount;
+            mgr.addChild(node);
+        }
     }
 
     private _key(x: number, y: number): string {

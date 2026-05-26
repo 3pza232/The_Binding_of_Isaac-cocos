@@ -65,11 +65,12 @@ export abstract class ItemBase extends Component {
 
     private _pickedUp = false;
 
-    private _onContact(_self: Collider2D, other: Collider2D): void {
-        if (other.group !== GROUP.PLAYER || this._pickedUp) return;
+    /** 外部触发拾取（商店购买、宝箱房触碰统一入口） */
+    manualPickup(player: Node): void {
+        if (this._pickedUp) return;
         this._pickedUp = true;
 
-        this.onPickup(other.node);
+        this.onPickup(player);
 
         const displaySprite = this.getComponent(Sprite);
         if (displaySprite && displaySprite.spriteFrame) {
@@ -91,12 +92,24 @@ export abstract class ItemBase extends Component {
             src.playOneShot(this.pickupSound, this.sfxVolume);
         }
 
+        // 不能在物理回调中禁用 collider/移除节点 → 延后到帧末
+        const collectNode = this.node;
+        const pedestal = this.node.parent;
         this.scheduleOnce(() => {
-            const collider = this.node.getComponent(Collider2D);
+            if (!collectNode.isValid) return;
+            const collider = collectNode.getComponent(Collider2D);
             if (collider) collider.enabled = false;
-            this.node.active = false;
-            this.node.destroy();
+            collectNode.removeFromParent();
+            if (pedestal && pedestal.isValid) pedestal.destroy();
         });
+    }
+
+    private _onContact(_self: Collider2D, other: Collider2D): void {
+        if (other.group !== GROUP.PLAYER) return;
+        // 商店验币
+        const shop = this.node.parent?.getComponent('ShopItem') as any;
+        if (shop?.tryBuy && !shop.tryBuy()) return;
+        this.manualPickup(other.node);
     }
 
     protected abstract onPickup(player: Node): void;

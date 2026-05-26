@@ -736,7 +736,7 @@
     "_range": 250,
     "_fireRate": 0.5,
     "fallStartRatio": 0.75,
-    "fallSpeed": 0.3,
+    "fallSpeed": 0.1,
     "spawnOffsetX": 20,
     "spawnOffsetY": 20,
     "piercing": false,

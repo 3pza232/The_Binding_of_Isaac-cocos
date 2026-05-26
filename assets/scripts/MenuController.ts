@@ -71,9 +71,8 @@ export class MenuController extends Component {
             case KeyCode.SPACE:
                 this._triggered = true;
                 input.off(Input.EventType.KEY_DOWN, this._onKey, this);
-                if (this._selectedNew) {
-                    GameState.collectiblePrefabs = this.collectiblePrefabs;
-                } else if (GameState.hasSave) {
+                GameState.collectiblePrefabs = this.collectiblePrefabs;
+                if (!this._selectedNew && GameState.hasSave) {
                     GameState.i.shouldContinue = true;
                 }
                 this._fadeAndStart();
@@ -94,12 +93,17 @@ export class MenuController extends Component {
             src.playOneShot(this.transitionSfx, this.transitionVol);
         }
 
+        // 继续游戏时读取存档中的场景名
+        const sceneName = this._selectedNew
+            ? '01_isaac_room'
+            : (GameState.i.load()?.scene ?? '01_isaac_room');
+
         const opacity = this.node.getComponent(UIOpacity) || this.node.addComponent(UIOpacity);
         opacity.opacity = 255;
 
         tween(opacity)
             .to(this.fadeDuration, { opacity: 0 }, { easing: 'sineInOut' })
-            .call(() => director.loadScene('01_isaac_room'))
+            .call(() => director.loadScene(sceneName))
             .start();
     }
 }

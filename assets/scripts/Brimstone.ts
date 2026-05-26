@@ -62,12 +62,14 @@ export class Brimstone extends ItemBase {
         GameState.i.attackType = AttackType.BRIMSTONE;
     }
 
-    /** 发射激光（由 BrimstoneStrategy 调用，damage 和 color 已经 EffectPipeline 修饰） */
+    /** 发射激光，返回所有段节点 [head, body0, body1, ...] */
     static fire(
         worldPos: Vec3 | Vec2, dir: Vec2, damage: number, color: Color,
+        tracking: { onHit: (enemy: Node, idx: number) => void } | null,
         parent: Node, player: Node,
-    ): void {
-        if (!Brimstone.headPrefab || !Brimstone.bodyPrefab) return;
+    ): Node[] {
+        const segments: Node[] = [];
+        if (!Brimstone.headPrefab || !Brimstone.bodyPrefab) return segments;
 
         const wx = worldPos.x + dir.x * Brimstone.offsetX;
         const wy = worldPos.y + dir.y * Brimstone.offsetY;
@@ -77,9 +79,11 @@ export class Brimstone extends ItemBase {
         head.setParent(parent);
         head.setWorldPosition(wx, wy, 0);
         _rotate(head, dir);
-        _addLaser(head, damage, color, player, wx - pw.x, wy - pw.y);
+        _addLaser(head, damage, color, tracking, player, wx - pw.x, wy - pw.y, 0);
+        segments.push(head);
 
         let dist = Brimstone.segmentSize;
+        let idx = 1;
         while (dist < ROOM_DIAG) {
             const bx = wx + dir.x * dist;
             const by = wy + dir.y * dist;
@@ -87,19 +91,26 @@ export class Brimstone extends ItemBase {
             body.setParent(parent);
             body.setWorldPosition(bx, by, 0);
             _rotate(body, dir);
-            _addLaser(body, damage, color, player, bx - pw.x, by - pw.y);
+            _addLaser(body, damage, color, tracking, player, bx - pw.x, by - pw.y, idx);
+            segments.push(body);
             dist += Brimstone.segmentSize;
+            idx++;
         }
+        return segments;
     }
 }
 
-function _addLaser(node: Node, dmg: number, color: Color, player: Node, ox: number, oy: number): BrimstoneLaser {
+function _addLaser(
+    node: Node, dmg: number, color: Color,
+    tracking: { onHit: (enemy: Node, idx: number) => void } | null,
+    player: Node, ox: number, oy: number, idx: number,
+): BrimstoneLaser {
     const bl = node.getComponent(BrimstoneLaser) || node.addComponent(BrimstoneLaser);
     bl.damage = dmg;
     bl.playerNode = player;
     bl.offsetX = ox;
     bl.offsetY = oy;
-    // 应用颜色修饰（DollarBill 等藏品效果；Sprite 在子节点 "Sprite" 上）
+    if (tracking) bl.enableTracking(idx, tracking.onHit);
     const sp = node.getChildByName('Sprite')?.getComponent(Sprite);
     if (sp) sp.color = color;
     bl.startLaser();

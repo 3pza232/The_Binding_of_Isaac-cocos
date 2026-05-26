@@ -1,4 +1,4 @@
-import { _decorator, Node, Sprite, Prefab, instantiate, Vec2, Vec3 } from 'cc';
+import { Sprite, instantiate, Vec2 } from 'cc';
 import { IAttackStrategy } from './IAttackStrategy';
 import { AttackType } from './Constants';
 import { AttackContext } from './AttackContext';

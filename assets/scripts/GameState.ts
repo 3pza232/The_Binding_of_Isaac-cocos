@@ -1,10 +1,18 @@
-import { sys, KeyCode, Prefab, SpriteFrame, Node } from 'cc';
+import { sys, KeyCode, Prefab, SpriteFrame, Node } from "cc";
 import {
-    DEFAULT_MAX_HP, DEFAULT_MOVE_SPEED, DEFAULT_TEAR_DAMAGE,
-    DEFAULT_TEAR_SPEED, DEFAULT_RANGE, DEFAULT_FIRE_RATE, DEFAULT_KEYS,
-    MAX_KEYS, MAX_COINS, AttackType,
-} from './Constants';
-import { EffectPipeline } from './EffectPipeline';
+    DEFAULT_MAX_HP,
+    DEFAULT_MOVE_SPEED,
+    DEFAULT_TEAR_DAMAGE,
+    DEFAULT_TEAR_SPEED,
+    DEFAULT_RANGE,
+    DEFAULT_FIRE_RATE,
+    DEFAULT_KEYS,
+    MAX_KEYS,
+    MAX_COINS,
+    AttackType,
+} from "./Constants";
+import { EffectPipeline } from "./EffectPipeline";
+import { LaserTracker } from "./LaserTracker";
 
 // ── 存档数据结构 ──
 
@@ -18,12 +26,20 @@ export interface PlayerStatsData {
     tearSpeed: number;
     fireRate: number;
     homingEnabled: boolean;
+    laserHomingEnabled: boolean;
     enemyPiercing: boolean;
     wallPiercing: boolean;
     brimstone: boolean;
     dollarBill: boolean;
     keys: number;
     coins: number;
+}
+
+export interface DropSaveData {
+    type: 'coin' | 'key';
+    x: number;
+    y: number;
+    amount: number;
 }
 
 export interface RoomSaveData {
@@ -35,11 +51,15 @@ export interface RoomSaveData {
     itemTaken: boolean;
     links: string[];
     doorsUnlocked: boolean[];
+    collectiblePrefabNames: string[];
+    drops: DropSaveData[];
 }
 
 export interface SaveData {
     scene: string;
     playerRoom: string;
+    playerRoomX: number;
+    playerRoomY: number;
     stats: PlayerStatsData;
     rooms: RoomSaveData[];
     collectedPool: string[];
@@ -50,7 +70,6 @@ export interface SaveData {
 // ── 单例 ──
 
 export class GameState {
-
     private static _i: GameState;
     /** 快捷访问 GameState.i */
     static get i(): GameState {
@@ -72,6 +91,9 @@ export class GameState {
     tearSpeed = DEFAULT_TEAR_SPEED;
     fireRate = DEFAULT_FIRE_RATE;
     homing = false;
+    laserHoming = false; // 激光追踪（SacredHeart 等藏品）
+    tearHomingStrength = 8; // 泪弹追踪转向速度(越大越快)
+    laserTrackingStrength = 1.0; // 激光追踪强度倍率(SacredHeart/SpoonBender 等设置)
     enemyPiercing = false;
     wallPiercing = false;
     tearSf: SpriteFrame | null = null;
@@ -98,6 +120,11 @@ export class GameState {
 
     bossIntroDone = new Set<string>();
 
+    // ── 玩家在房间内的坐标（存档用）──
+
+    playerRoomX = 0;
+    playerRoomY = 0;
+
     // ── 输入状态（跨传送持久）──
 
     heldMoveKeys = new Set<KeyCode>();
@@ -112,6 +139,9 @@ export class GameState {
 
     shouldContinue = false;
 
+    /** 场景过渡标记：SceneDoor → 下一层，跳过 reset 保留玩家状态 */
+    sceneTransitioning = false;
+
     /** 跨场景持久 BGM 节点（Start→Menu 无缝衔接） */
     static persistBgmNode: Node | null = null;
 
@@ -119,13 +149,19 @@ export class GameState {
 
     private _effects: Array<(dt: number) => void> = [];
 
-    onFrame(fn: (dt: number) => void): void { this._effects.push(fn); }
-    tickEffects(dt: number): void { for (const fn of this._effects) fn(dt); }
-    clearEffects(): void { this._effects = []; }
+    onFrame(fn: (dt: number) => void): void {
+        this._effects.push(fn);
+    }
+    tickEffects(dt: number): void {
+        for (const fn of this._effects) fn(dt);
+    }
+    clearEffects(): void {
+        this._effects = [];
+    }
 
     // ── 存档 ──
 
-    private static readonly SAVE_KEY = 'isaac_save';
+    private static readonly SAVE_KEY = "isaac_save";
 
     static get hasSave(): boolean {
         return sys.localStorage.getItem(GameState.SAVE_KEY) !== null;
@@ -162,6 +198,9 @@ export class GameState {
         this.tearSpeed = DEFAULT_TEAR_SPEED;
         this.fireRate = DEFAULT_FIRE_RATE;
         this.homing = false;
+        this.laserHoming = false;
+        this.tearHomingStrength = 8;
+        this.laserTrackingStrength = 1.0;
         this.enemyPiercing = false;
         this.wallPiercing = false;
         this.tearSf = null;
@@ -175,8 +214,11 @@ export class GameState {
         this.brimLaserTimer = 0;
         this.clearEffects();
         EffectPipeline.clear();
+        LaserTracker.clearBendModifiers();
         this.keys = DEFAULT_KEYS;
         this.coins = 0;
+        this.playerRoomX = 0;
+        this.playerRoomY = 0;
         this.collected.clear();
         this.bossIntroDone.clear();
         this.heldMoveKeys.clear();
@@ -194,6 +236,7 @@ export class GameState {
         this.tearSpeed = s.tearSpeed;
         this.fireRate = s.fireRate;
         this.homing = s.homingEnabled;
+        this.laserHoming = s.laserHomingEnabled;
         this.enemyPiercing = s.enemyPiercing;
         this.wallPiercing = s.wallPiercing;
         this.brimstone = s.brimstone;
@@ -205,17 +248,41 @@ export class GameState {
 
     // ── 便捷方法 ──
 
-    get alive(): boolean { return this.hp > 0; }
+    get alive(): boolean {
+        return this.hp > 0;
+    }
 
-    takeDamage(n = 1): void { this.hp = Math.max(0, this.hp - n); }
-    heal(n: number): void { this.hp = Math.min(this.hp + n, this.maxHp); }
-    setMaxHp(n: number): void { this.maxHp = Math.min(n, 16); }
+    takeDamage(n = 1): void {
+        this.hp = Math.max(0, this.hp - n);
+    }
+    heal(n: number): void {
+        this.hp = Math.min(this.hp + n, this.maxHp);
+    }
+    setMaxHp(n: number): void {
+        this.maxHp = Math.min(n, 16);
+    }
 
-    spendKey(n = 1): boolean { if (this.keys < n) return false; this.keys -= n; return true; }
-    addKeys(n: number): void { this.keys = Math.min(this.keys + n, MAX_KEYS); }
-    spendCoin(n: number): boolean { if (this.coins < n) return false; this.coins -= n; return true; }
-    addCoins(n: number): void { this.coins = Math.min(this.coins + n, MAX_COINS); }
+    spendKey(n = 1): boolean {
+        if (this.keys < n) return false;
+        this.keys -= n;
+        return true;
+    }
+    addKeys(n: number): void {
+        this.keys = Math.min(this.keys + n, MAX_KEYS);
+    }
+    spendCoin(n: number): boolean {
+        if (this.coins < n) return false;
+        this.coins -= n;
+        return true;
+    }
+    addCoins(n: number): void {
+        this.coins = Math.min(this.coins + n, MAX_COINS);
+    }
 
-    markCollected(name: string): void { this.collected.add(name); }
-    isCollected(name: string): boolean { return this.collected.has(name); }
+    markCollected(name: string): void {
+        this.collected.add(name);
+    }
+    isCollected(name: string): boolean {
+        return this.collected.has(name);
+    }
 }

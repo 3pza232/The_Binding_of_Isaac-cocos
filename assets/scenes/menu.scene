@@ -957,11 +957,35 @@
     "__prefab": null,
     "collectiblePrefabs": [
       {
-        "__uuid__": "3dec8498-f4a1-4920-8974-87a54d610430",
+        "__uuid__": "76270b4a-9cd0-427d-af72-ae43ce2bd125",
+        "__expectedType__": "cc.Prefab"
+      },
+      {
+        "__uuid__": "c51369a2-67db-4df8-8bb7-8f943a90bb25",
+        "__expectedType__": "cc.Prefab"
+      },
+      {
+        "__uuid__": "5c1cb474-355a-4dc6-a230-842be4329f7d",
         "__expectedType__": "cc.Prefab"
       },
       {
         "__uuid__": "e72061b8-853c-4954-ab36-246e1fb9c3ff",
+        "__expectedType__": "cc.Prefab"
+      },
+      {
+        "__uuid__": "89931481-fdc1-43be-bbf6-842a5f287d2f",
+        "__expectedType__": "cc.Prefab"
+      },
+      {
+        "__uuid__": "3dec8498-f4a1-4920-8974-87a54d610430",
+        "__expectedType__": "cc.Prefab"
+      },
+      {
+        "__uuid__": "f3f71031-0eb1-490a-9cb6-dca13f4270da",
+        "__expectedType__": "cc.Prefab"
+      },
+      {
+        "__uuid__": "389be57b-809d-47b7-91db-540f598a38b6",
         "__expectedType__": "cc.Prefab"
       }
     ],

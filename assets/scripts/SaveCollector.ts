@@ -1,8 +1,10 @@
-import { find, director } from 'cc';
+import { find, director, Node } from 'cc';
 import { Room, RoomType } from './Room';
 import { DoorController } from './DoorController';
 import { CollectibleUI } from './CollectibleUI';
-import { GameState, SaveData, RoomSaveData, PlayerStatsData } from './GameState';
+import { ItemBase } from './ItemBase';
+import { DropPickup, DropType } from './DropPickup';
+import { GameState, SaveData, DropSaveData } from './GameState';
 import { ROOM_SPACING_X, ROOM_SPACING_Y } from './Constants';
 
 export class SaveCollector {
@@ -23,6 +25,7 @@ export class SaveCollector {
             tearSpeed: gs.tearSpeed,
             fireRate: gs.fireRate,
             homingEnabled: gs.homing,
+            laserHomingEnabled: gs.laserHoming,
             enemyPiercing: gs.enemyPiercing,
             wallPiercing: gs.wallPiercing,
             brimstone: gs.brimstone,
@@ -31,8 +34,10 @@ export class SaveCollector {
             coins: gs.coins,
         };
 
-        // 玩家所在房间
+        // 玩家所在房间及房间内坐标
         let playerRoom = '0,0';
+        let playerRoomX = 0;
+        let playerRoomY = 0;
         const isaac = _findIsaac(gm);
         if (isaac) {
             const roomNode = _findContainingRoom(isaac);
@@ -40,6 +45,8 @@ export class SaveCollector {
                 const gx = Math.round(roomNode.position.x / ROOM_SPACING_X);
                 const gy = Math.round(roomNode.position.y / ROOM_SPACING_Y);
                 playerRoom = `${gx},${gy}`;
+                playerRoomX = isaac.position.x;
+                playerRoomY = isaac.position.y;
             }
         }
 
@@ -69,6 +76,44 @@ export class SaveCollector {
                 }
             }
 
+            // 藏品名列表（ItemBase 在 pedestal 的所有子节点中查找）
+            const collectiblePrefabNames: string[] = [];
+            const shouldSaveCollectible =
+                room.roomType === RoomType.TREASURE ||
+                room.roomType === RoomType.SHOP ||
+                (room.roomType === RoomType.BOSS && room.cleared && !room.itemTaken);
+            if (shouldSaveCollectible) {
+                const mgr = child.getChildByName('RoomManager');
+                if (mgr) {
+                    for (const itemNode of mgr.children) {
+                        for (const childNode of itemNode.children) {
+                            const ib = childNode.getComponent(ItemBase);
+                            if (ib) {
+                                collectiblePrefabNames.push(childNode.name);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 掉落物
+            const drops: DropSaveData[] = [];
+            const mgr = child.getChildByName('RoomManager');
+            if (mgr) {
+                for (const dropNode of mgr.children) {
+                    const dp = dropNode.getComponent(DropPickup);
+                    if (dp) {
+                        drops.push({
+                            type: dp.type === DropType.COIN ? 'coin' : 'key',
+                            x: dropNode.position.x,
+                            y: dropNode.position.y,
+                            amount: dp.amount,
+                        });
+                    }
+                }
+            }
+
             rooms.push({
                 key: `${gx},${gy}`,
                 x: gx, y: gy,
@@ -77,6 +122,8 @@ export class SaveCollector {
                 itemTaken: room.itemTaken,
                 links,
                 doorsUnlocked,
+                collectiblePrefabNames,
+                drops,
             });
         }
 
@@ -101,6 +148,8 @@ export class SaveCollector {
         return {
             scene: director.getScene()!.name,
             playerRoom,
+            playerRoomX,
+            playerRoomY,
             stats,
             rooms,
             collectedPool: [...gs.collected],
@@ -110,7 +159,7 @@ export class SaveCollector {
     }
 }
 
-function _findIsaac(gm: any): any {
+function _findIsaac(gm: Node): Node | null {
     for (const child of gm.children) {
         const mgr = child.getChildByName('RoomManager');
         if (mgr) {
@@ -121,8 +170,8 @@ function _findIsaac(gm: any): any {
     return null;
 }
 
-function _findContainingRoom(node: any): any {
-    let n = node.parent;
+function _findContainingRoom(node: Node): Node | null {
+    let n: Node | null = node.parent;
     while (n) {
         if (n.getComponent(Room)) return n;
         n = n.parent;

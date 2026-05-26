@@ -4,6 +4,7 @@ import {
 } from 'cc';
 import { RoomType } from './Room';
 import { GameState } from './GameState';
+import { GROUP } from './Constants';
 
 const { ccclass, property } = _decorator;
 
@@ -68,7 +69,7 @@ export class DoorController extends Component {
     }
 
     private _onEndContact(_self: Collider2D, other: Collider2D): void {
-        if (other.group !== 4) return;
+        if (other.group !== GROUP.PLAYER) return;
         this._pendingIsaac = null;
     }
 
@@ -251,7 +252,7 @@ export class DoorController extends Component {
 
     private _onContact(_self: Collider2D, other: Collider2D): void {
         if (this._pendingIsaac || !this.targetRoom || !this.isaacPrefab) return;
-        if (other.group !== 4) return; // PLAYER
+        if (other.group !== GROUP.PLAYER) return;
         if (Date.now() - DoorController._lastTeleportTime < 500) return;
 
         if (this.requiresKey && !this._unlocked) {

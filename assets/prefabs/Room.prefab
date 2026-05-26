@@ -3215,6 +3215,17 @@
       "__id__": 158
     },
     "nextDoorDelay": 2,
+    "coinPrefab": {
+      "__uuid__": "6ccbfd52-f48f-4c06-9fea-4e59fc6075c5",
+      "__expectedType__": "cc.Prefab"
+    },
+    "keyPrefab": {
+      "__uuid__": "a27d92c9-53a2-4057-a403-568d8a2a705b",
+      "__expectedType__": "cc.Prefab"
+    },
+    "dropChance": 0.3,
+    "maxCoinsPerRoom": 5,
+    "maxKeysPerRoom": 2,
     "_id": ""
   },
   {

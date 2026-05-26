@@ -326,10 +326,6 @@
     ],
     "bossPrefabs": [
       {
-        "__uuid__": "41c1648a-95ee-4cb5-b6c6-3d880a9accbc",
-        "__expectedType__": "cc.Prefab"
-      },
-      {
         "__uuid__": "5e3eebc1-ae12-4085-a3a5-27e08a571a65",
         "__expectedType__": "cc.Prefab"
       }
@@ -350,22 +346,27 @@
       "__uuid__": "ab3b4826-72a6-45ca-ba13-8ff54669a1a6",
       "__expectedType__": "cc.TiledMapAsset"
     },
+    "shopItemCount": 1,
     "bossTmx": {
       "__uuid__": "12bead02-cacc-418d-8ef0-906072a39f78",
       "__expectedType__": "cc.TiledMapAsset"
     },
-    "totalRooms": 8,
+    "totalRooms": 10,
     "minRooms": 8,
-    "treasureRooms": 2,
+    "treasureRooms": 1,
     "shopRooms": 1,
-    "nextSceneName": "start",
-    "monsterMin": 1,
-    "monsterMax": 1,
+    "nextSceneName": "02_basement",
+    "monsterMin": 3,
+    "monsterMax": 6,
     "gameBgm": {
       "__uuid__": "ada6c035-e212-4038-923e-ab518342e080",
       "__expectedType__": "cc.AudioClip"
     },
-    "bgmVolume": 0.6,
+    "bossBgm": {
+      "__uuid__": "39dbd583-c377-4868-acd5-8e0f9a1fd376",
+      "__expectedType__": "cc.AudioClip"
+    },
+    "bgmVolume": 0.8,
     "_id": "8cz9/SWYVOhbmsZrJMkCSV"
   },
   {

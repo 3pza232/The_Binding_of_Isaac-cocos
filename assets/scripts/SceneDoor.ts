@@ -1,5 +1,6 @@
 import { _decorator, Component, Collider2D, Contact2DType, director } from 'cc';
 import { GROUP } from './Constants';
+import { GameState } from './GameState';
 
 const { ccclass } = _decorator;
 
@@ -18,6 +19,7 @@ export class SceneDoor extends Component {
 
     private _onContact(_self: Collider2D, other: Collider2D): void {
         if (other.group !== GROUP.PLAYER || !this.sceneName) return;
+        GameState.i.sceneTransitioning = true;
         director.loadScene(this.sceneName);
     }
 }

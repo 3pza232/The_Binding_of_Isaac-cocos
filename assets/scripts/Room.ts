@@ -1,4 +1,14 @@
-import { _decorator, Component, Enum, Node, UITransform, Sprite, RigidBody2D } from "cc";
+import {
+    _decorator,
+    Component,
+    Enum,
+    Node,
+    Prefab,
+    instantiate,
+    UITransform,
+    Sprite,
+    RigidBody2D,
+} from "cc";
 import { DoorController } from "./DoorController";
 import { Monster } from "./Monster";
 import { BossIntroManager } from "./BossIntroManager";
@@ -32,6 +42,21 @@ export class Room extends Component {
 
     @property({ displayName: "通关门延迟(秒)" })
     nextDoorDelay = 2;
+
+    @property({ type: Prefab, displayName: "硬币预制体" })
+    coinPrefab: Prefab | null = null;
+
+    @property({ type: Prefab, displayName: "钥匙预制体" })
+    keyPrefab: Prefab | null = null;
+
+    @property({ displayName: "掉落概率", range: [0, 1, 0.05], slide: true })
+    dropChance = 0.2;
+
+    @property({ displayName: "硬币上限/房" })
+    maxCoinsPerRoom = 3;
+
+    @property({ displayName: "钥匙上限/房" })
+    maxKeysPerRoom = 3;
 
     // ── 状态 ──
 
@@ -153,6 +178,9 @@ export class Room extends Component {
         this.node.active = true;
 
         if (this.roomType === RoomType.BOSS && !this._cleared) {
+            // 切入 Boss 音乐
+            (this.node.parent?.getComponent("MapGenerator") as any)?.playBossMusic?.();
+
             const mgr = this.node.getChildByName("RoomManager");
             if (mgr) {
                 for (const child of mgr.children) {
@@ -214,10 +242,41 @@ export class Room extends Component {
             for (const door of this._doors) door.open();
             if (this.bossHealthBar) this.bossHealthBar.active = false;
 
+            if (this.roomType === RoomType.MONSTER) this._spawnDrops();
+
+            // Boss 击败 → 掉藏品 + 切回主音乐
+            if (this.roomType === RoomType.BOSS) {
+                const mg = this.node.parent?.getComponent("MapGenerator") as any;
+                mg?.spawnBossDrop?.(this.node);
+                mg?.playMainMusic?.();
+            }
+
             // Boss 击败 → 显示通关门，延迟切换到终态
             if (this.roomType === RoomType.BOSS && this.nextDoor) {
                 this.nextDoor.active = true;
                 this.scheduleOnce(() => this._applyNextDoorFinal(), this.nextDoorDelay);
+            }
+        }
+    }
+
+    private _spawnDrops(): void {
+        const mgr = this.node.getChildByName("RoomManager");
+        if (!mgr) return;
+        // 本地坐标随机，范围与 MapGenerator._spawnMonsters 一致: ±250 x, ±150 y
+        if (this.coinPrefab && Math.random() < this.dropChance) {
+            const count = 1 + Math.floor(Math.random() * this.maxCoinsPerRoom);
+            for (let i = 0; i < count; i++) {
+                const coin = instantiate(this.coinPrefab);
+                coin.setPosition((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 300, 0);
+                mgr.addChild(coin);
+            }
+        }
+        if (this.keyPrefab && Math.random() < this.dropChance) {
+            const count = 1 + Math.floor(Math.random() * this.maxKeysPerRoom);
+            for (let i = 0; i < count; i++) {
+                const key = instantiate(this.keyPrefab);
+                key.setPosition((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 300, 0);
+                mgr.addChild(key);
             }
         }
     }

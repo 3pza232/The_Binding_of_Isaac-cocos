@@ -4,6 +4,7 @@ import {
 } from 'cc';
 import { GROUP } from './Constants';
 import { DollarBill } from './DollarBill';
+import { GameState } from './GameState';
 
 const { ccclass } = _decorator;
 
@@ -26,7 +27,6 @@ export class Tear extends Component {
     private _isHorizontal = false;
     private _damage = 1;
     private _homing = false;
-    private _homingStrength = 8;
     private _breakSnd: AudioClip | null = null;
     private _breakVol = 1;
 
@@ -42,6 +42,11 @@ export class Tear extends Component {
     private _breakTimer = 0;
     private _vel2 = v2(0, 0);
     private _hitEnemies = new Set<Node>();
+    private _pathDist = 0;
+    private _scanTimer = 0;
+    private _steerTarget: Node | null = null;
+    private _maxLifetime = 0;
+    private _lifeTimer = 0;
 
     // ── 生命周期 ──
 
@@ -100,6 +105,11 @@ export class Tear extends Component {
         if (collider) collider.sensor = enemyPiercing || wallPiercing;
 
         this._state = "fly";
+        this._pathDist = 0;
+        this._lifeTimer = 0;
+        this._maxLifetime = (range / speed) * (homing ? 2.5 : 1.1);
+        this._scanTimer = 0;
+        this._steerTarget = null;
         this.node.getWorldPosition(this._startPos);
     }
 
@@ -121,38 +131,53 @@ export class Tear extends Component {
             this._bodySprite.color = DollarBill.color;
         }
 
+        this._lifeTimer += dt;
+
+        const v = this._rigidBody.linearVelocity;
+        const speed = Math.sqrt(v.x * v.x + v.y * v.y);
+        this._pathDist += speed * dt;
+
         const p = this.node.worldPosition;
         const dx = p.x - this._startPos.x;
         const dy = p.y - this._startPos.y;
-        const traveled = Math.sqrt(dx * dx + dy * dy);
+        const straightDist = Math.sqrt(dx * dx + dy * dy);
 
-        // 追尾：朝向最近未击中怪物微调方向，并旋转 Sprite
-        if (this._homing && this._state === "fly") {
-            if (this._steerTowardEnemy(dt) && this._bodyNode) {
-                const v = this._rigidBody.linearVelocity;
-                this._bodyNode.angle = Math.atan2(v.y, v.x) * (180 / Math.PI);
+        // 追尾：仅在射程前 80% 生效，避免终段绕圈
+        const homingWindow = this._range * 0.8;
+        if (this._homing && this._state === "fly" && straightDist < homingWindow) {
+            this._scanTimer -= dt;
+            if (this._scanTimer <= 0) {
+                this._scanTimer = 0.17;  // ~10 帧
+                this._steerTarget = this._findNearestEnemy();
+            }
+            if (this._steerTarget) {
+                this._steerTowardTarget(dt, this._steerTarget);
+                if (this._bodyNode) {
+                    this._bodyNode.angle = Math.atan2(v.y, v.x) * (180 / Math.PI);
+                }
             }
         }
 
         // 水平泪弹：进入下降阶段
-        if (this._state === "fly" && this._isHorizontal && traveled >= this._fallStartDist) {
+        if (this._state === "fly" && this._isHorizontal && this._pathDist >= this._fallStartDist) {
             this._state = "descend";
-            const dirX = this._rigidBody.linearVelocity.x > 0 ? 1 : -1;
+            const dirX = v.x > 0 ? 1 : -1;
             this._vel2.set(dirX * this._speed, -this._fallSpeed);
             this._rigidBody.linearVelocity = this._vel2;
             this._rigidBody.gravityScale = 1;
         }
 
-        if (traveled >= this._range) {
+        // 三重终止：直线超射程 / 路径里程超限 / 飞行超时（防绕圈无限）
+        if (straightDist >= this._range || this._pathDist >= this._range * 1.5 || this._lifeTimer >= this._maxLifetime) {
             this._startBreak();
         }
     }
 
-    /** 追尾：找到最近未击中怪物，steering 微调速度。返回 true 表示有目标 */
-    private _steerTowardEnemy(dt: number): boolean {
+    /** 搜索最近未击中怪物（昂贵操作，每 10 帧调用一次） */
+    private _findNearestEnemy(): Node | null {
         let room = this.node.parent;
         while (room && !room.getComponent('Room')) room = room.parent;
-        if (!room) return false;
+        if (!room) return null;
 
         let nearest: Node | null = null;
         let nearestD2 = Infinity;
@@ -166,17 +191,20 @@ export class Tear extends Component {
                 if (d2 < nearestD2) { nearestD2 = d2; nearest = n; }
             }
         });
-        if (!nearest) return false;
+        return nearest;
+    }
 
-        const tx = nearest.worldPosition.x - this.node.worldPosition.x;
-        const ty = nearest.worldPosition.y - this.node.worldPosition.y;
+    /** 朝向目标 steering 微调速度（每帧调用） */
+    private _steerTowardTarget(dt: number, target: Node): void {
+        const tx = target.worldPosition.x - this.node.worldPosition.x;
+        const ty = target.worldPosition.y - this.node.worldPosition.y;
         const mag = Math.sqrt(tx * tx + ty * ty);
-        if (mag <= 0) return false;
+        if (mag <= 0) return;
 
         const desiredX = (tx / mag) * this._speed;
         const desiredY = (ty / mag) * this._speed;
         const v = this._rigidBody.linearVelocity;
-        const t = Math.min(this._homingStrength * dt, 1);
+        const t = Math.min(GameState.i.tearHomingStrength * dt, 1);
         const newX = v.x + (desiredX - v.x) * t;
         const newY = v.y + (desiredY - v.y) * t;
         const newMag = Math.sqrt(newX * newX + newY * newY);
@@ -186,7 +214,6 @@ export class Tear extends Component {
                 (newY / newMag) * this._speed,
             );
         }
-        return true;
     }
 
     // ── 破裂 ──

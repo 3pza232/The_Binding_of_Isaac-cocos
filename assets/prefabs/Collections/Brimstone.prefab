@@ -222,7 +222,7 @@
       "__id__": 11
     },
     "pickupSound": {
-      "__uuid__": "42cd50d4-c07f-4215-86cd-ea7eb2671799",
+      "__uuid__": "4795efba-ccd1-4eca-aa20-de7381356ee9",
       "__expectedType__": "cc.AudioClip"
     },
     "sfxVolume": 1,
