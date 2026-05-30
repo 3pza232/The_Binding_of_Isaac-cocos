@@ -1,6 +1,6 @@
 import {
     _decorator, Component, Node, RigidBody2D, Animation,
-    Sprite, SpriteFrame, input, Input, KeyCode, EventKeyboard, Vec2, v2,
+    Sprite, SpriteFrame, input, Input, KeyCode, EventKeyboard, Vec2, v2, sys,
 } from 'cc';
 import { GameState } from './GameState';
 
@@ -63,6 +63,17 @@ export class Body extends Component {
     update(_dt: number): void {
         const health = this.node.getComponent('PlayerHealth') as any;
         if (!health?.alive || health?.isStunned) return;
+
+        // 移动端：摇杆驱动
+        if (sys.isMobile) {
+            const md = GameState.i.mobileMoveDir;
+            if (md.x !== 0 || md.y !== 0) {
+                this._move(md.x, md.y);
+            } else {
+                this._idle();
+            }
+            return;
+        }
 
         const dx = this._axis('D', 'A');
         const dy = this._axis('W', 'S');

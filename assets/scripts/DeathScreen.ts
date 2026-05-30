@@ -43,6 +43,18 @@ export class DeathScreen extends Component {
         input.off(Input.EventType.KEY_DOWN, this._onKey, this);
     }
 
+    get isVisible(): boolean { return this.deathUI.active; }
+
+    /** 关闭死亡画面（移动端 Esc/Enter 按钮调用） */
+    dismiss(): void {
+        if (!this.deathUI.active) return;
+        if (Date.now() - DeathScreen._lastLoadTime < 1000) return;
+        DeathScreen._lastLoadTime = Date.now();
+        GameState.i.deleteSave();
+        director.resume();
+        director.loadScene('menu');
+    }
+
     show(killerNode: Node | null): void {
         if (this._places.length > 0) {
             const pick = Math.floor(Math.random() * this._places.length);

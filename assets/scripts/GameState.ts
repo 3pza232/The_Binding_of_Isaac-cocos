@@ -1,4 +1,4 @@
-import { sys, KeyCode, Prefab, SpriteFrame, Node } from "cc";
+import { sys, KeyCode, Prefab, SpriteFrame, Node, Vec2, v2 } from "cc";
 import {
     DEFAULT_MAX_HP,
     DEFAULT_MOVE_SPEED,
@@ -130,6 +130,12 @@ export class GameState {
     heldMoveKeys = new Set<KeyCode>();
     heldAimKeys = new Map<KeyCode, number>();
 
+    // ── 移动端触控桥梁（← Joystick/DirectionButton 写入 → Body/Head 读取）──
+
+    mobileMoveDir = v2(0, 0);
+    mobileAimDir: Vec2 | null = null;
+    mobileFireDir: Vec2 | null = null;
+
     // ── 藏品池（跨关卡共享）──
 
     /** 由 MenuController 在开始新游戏时注入 */
@@ -223,6 +229,9 @@ export class GameState {
         this.bossIntroDone.clear();
         this.heldMoveKeys.clear();
         this.heldAimKeys.clear();
+        this.mobileMoveDir.set(0, 0);
+        this.mobileAimDir = null;
+        this.mobileFireDir = null;
     }
 
     /** 从存档恢复玩家属性 */

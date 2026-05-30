@@ -58,6 +58,26 @@ export class MenuController extends Component {
         input.off(Input.EventType.KEY_DOWN, this._onKey, this);
     }
 
+    /** 切换菜单选择（移动端 W/S 按钮调用） */
+    toggleSelection(): void {
+        if (this._triggered) return;
+        this._selectedNew = !this._selectedNew;
+        this._arrowNew.active = this._selectedNew;
+        this._arrowContinue.active = !this._selectedNew;
+    }
+
+    /** 确认选择（移动端 Enter 按钮调用） */
+    onEnter(): void {
+        if (this._triggered) return;
+        this._triggered = true;
+        input.off(Input.EventType.KEY_DOWN, this._onKey, this);
+        GameState.collectiblePrefabs = this.collectiblePrefabs;
+        if (!this._selectedNew && GameState.hasSave) {
+            GameState.i.shouldContinue = true;
+        }
+        this._fadeAndStart();
+    }
+
     private _onKey(e: EventKeyboard): void {
         if (this._triggered) return;
         switch (e.keyCode) {
@@ -69,13 +89,7 @@ export class MenuController extends Component {
                 break;
             case KeyCode.ENTER:
             case KeyCode.SPACE:
-                this._triggered = true;
-                input.off(Input.EventType.KEY_DOWN, this._onKey, this);
-                GameState.collectiblePrefabs = this.collectiblePrefabs;
-                if (!this._selectedNew && GameState.hasSave) {
-                    GameState.i.shouldContinue = true;
-                }
-                this._fadeAndStart();
+                this.onEnter();
                 break;
         }
     }

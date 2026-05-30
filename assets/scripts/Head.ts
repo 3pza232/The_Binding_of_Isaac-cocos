@@ -1,6 +1,6 @@
 import {
     _decorator, Component, Node, Animation,
-    Sprite, SpriteFrame, input, Input, KeyCode, EventKeyboard, Vec2, v2,
+    Sprite, SpriteFrame, input, Input, KeyCode, EventKeyboard, Vec2, v2, sys,
 } from 'cc';
 import { Body } from './Body';
 import { GameState } from './GameState';
@@ -23,6 +23,7 @@ export class Head extends Component {
 
     /** 当前瞄准方向（无箭头键时返回 null） */
     get aimDirection(): Vec2 | null {
+        if (sys.isMobile) return GameState.i.mobileAimDir;
         if (this._pressTimes.size === 0) return null;
         const k = this._latestKey();
         if (k === null) return null;
@@ -40,6 +41,7 @@ export class Head extends Component {
     private _body: Body = null!;
     private _pressTimes = new Map<KeyCode, number>();
     private _lastFollowFacing = '';
+    private _mobileLastDir: Vec2 | null = null;
 
     onLoad(): void {
         this._headNode = this.node.getChildByName('Head')!;
@@ -73,6 +75,22 @@ export class Head extends Component {
     }
 
     update(_dt: number): void {
+        if (sys.isMobile) {
+            if (GameState.i.mobileAimDir) {
+                this.fireDir = null;
+                const md = GameState.i.mobileAimDir;
+                if (!this._mobileLastDir || md.x !== this._mobileLastDir.x || md.y !== this._mobileLastDir.y) {
+                    this._mobileLastDir = md.clone();
+                    this._applyMobileAim(md);
+                }
+            } else {
+                this._mobileLastDir = null;
+                this.fireDir = GameState.i.mobileFireDir;
+                this._followBody();
+            }
+            return;
+        }
+
         if (this._pressTimes.size === 0) {
             this._followBody();
         } else {
@@ -138,6 +156,13 @@ export class Head extends Component {
                 this._animation.play('isaac_head_up');
                 break;
         }
+    }
+
+    private _applyMobileAim(d: Vec2): void {
+        if (d.y > 0) this._applyDir(Dir.UP);
+        else if (d.y < 0) this._applyDir(Dir.DOWN);
+        else if (d.x > 0) this._applyDir(Dir.RIGHT);
+        else this._applyDir(Dir.LEFT);
     }
 
     private _followBody(): void {

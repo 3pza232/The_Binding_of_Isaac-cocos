@@ -37,11 +37,17 @@ export class StartController extends Component {
         input.off(Input.EventType.KEY_DOWN, this._onKey, this);
     }
 
+    /** 移动端 Enter 按钮调用 */
+    onEnter(): void {
+        if (this._triggered) return;
+        this._triggered = true;
+        input.off(Input.EventType.KEY_DOWN, this._onKey, this);
+        director.loadScene('menu');
+    }
+
     private _onKey(e: EventKeyboard): void {
         if (this._triggered) return;
         if (e.keyCode !== KeyCode.ENTER && e.keyCode !== KeyCode.SPACE) return;
-
-        this._triggered = true;
-        director.loadScene('menu');
+        this.onEnter();
     }
 }

@@ -25,11 +25,17 @@ export class EndController extends Component {
         input.off(Input.EventType.KEY_DOWN, this._onKey, this);
     }
 
+    /** 移动端 Enter/Esc 按钮调用 */
+    onEnter(): void {
+        if (this._triggered) return;
+        this._triggered = true;
+        this._fadeOut();
+    }
+
     private _onKey(e: EventKeyboard): void {
         if (this._triggered) return;
         if (e.keyCode === KeyCode.ESCAPE || e.keyCode === KeyCode.ENTER || e.keyCode === KeyCode.SPACE) {
-            this._triggered = true;
-            this._fadeOut();
+            this.onEnter();
         }
     }
 
