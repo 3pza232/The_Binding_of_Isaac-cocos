@@ -1,0 +1,63 @@
+{
+  "__version__": "1.0.6",
+  "general": {
+    "designResolution": {
+      "width": 832,
+      "height": 520,
+      "fitHeight": true
+    }
+  },
+  "physics": {
+    "collisionGroups": [
+      {
+        "index": 1,
+        "name": "DOOR"
+      },
+      {
+        "index": 2,
+        "name": "PLAYER"
+      },
+      {
+        "index": 3,
+        "name": "ENEMY"
+      },
+      {
+        "index": 4,
+        "name": "WALL"
+      },
+      {
+        "index": 5,
+        "name": "TEAR"
+      },
+      {
+        "index": 6,
+        "name": "ITEM"
+      },
+      {
+        "index": 7,
+        "name": "NEXT_SENCE"
+      },
+      {
+        "index": 8,
+        "name": "ENEMY_BULLET"
+      }
+    ],
+    "collisionMatrix": {
+      "0": 1,
+      "1": 4,
+      "2": 474,
+      "3": 60,
+      "4": 300,
+      "5": 24,
+      "6": 4,
+      "7": 4,
+      "8": 20
+    }
+  },
+  "layer": [
+    {
+      "name": "GAME",
+      "value": 1
+    }
+  ]
+}
