@@ -1,17 +1,16 @@
-import { find, director, Node } from 'cc';
-import { Room, RoomType } from './Room';
-import { DoorController } from './DoorController';
-import { CollectibleUI } from './CollectibleUI';
-import { ItemBase } from './ItemBase';
-import { DropPickup, DropType } from './DropPickup';
-import { GameState, SaveData, DropSaveData } from './GameState';
-import { ROOM_SPACING_X, ROOM_SPACING_Y } from './Constants';
+import { find, director, Node } from "cc";
+import { Room, RoomType } from "./Room";
+import { DoorController } from "./DoorController";
+import { CollectibleUI } from "./CollectibleUI";
+import { ItemBase } from "./ItemBase";
+import { DropPickup, DropType } from "./DropPickup";
+import { GameState, SaveData, DropSaveData, PlayerStatsData, RoomSaveData } from "./GameState";
+import { ROOM_SPACING_X, ROOM_SPACING_Y } from "./Constants";
 
 export class SaveCollector {
-
     static collect(): SaveData {
-        const gm = find('Canvas/GameManager');
-        if (!gm) throw new Error('[SaveCollector] GameManager not found');
+        const gm = find("Canvas/GameManager");
+        if (!gm) throw new Error("[SaveCollector] GameManager not found");
 
         const gs = GameState.i;
 
@@ -35,7 +34,7 @@ export class SaveCollector {
         };
 
         // 玩家所在房间及房间内坐标
-        let playerRoom = '0,0';
+        let playerRoom = "0,0";
         let playerRoomX = 0;
         let playerRoomY = 0;
         const isaac = _findIsaac(gm);
@@ -59,7 +58,7 @@ export class SaveCollector {
             const gx = Math.round(child.position.x / ROOM_SPACING_X);
             const gy = Math.round(child.position.y / ROOM_SPACING_Y);
 
-            const doorContainer = child.getChildByName('Door');
+            const doorContainer = child.getChildByName("Door");
             const links: string[] = [];
             const doorsUnlocked: boolean[] = [];
 
@@ -83,7 +82,7 @@ export class SaveCollector {
                 room.roomType === RoomType.SHOP ||
                 (room.roomType === RoomType.BOSS && room.cleared && !room.itemTaken);
             if (shouldSaveCollectible) {
-                const mgr = child.getChildByName('RoomManager');
+                const mgr = child.getChildByName("RoomManager");
                 if (mgr) {
                     for (const itemNode of mgr.children) {
                         for (const childNode of itemNode.children) {
@@ -99,13 +98,13 @@ export class SaveCollector {
 
             // 掉落物
             const drops: DropSaveData[] = [];
-            const mgr = child.getChildByName('RoomManager');
+            const mgr = child.getChildByName("RoomManager");
             if (mgr) {
                 for (const dropNode of mgr.children) {
                     const dp = dropNode.getComponent(DropPickup);
                     if (dp) {
                         drops.push({
-                            type: dp.type === DropType.COIN ? 'coin' : 'key',
+                            type: dp.type === DropType.COIN ? "coin" : "key",
                             x: dropNode.position.x,
                             y: dropNode.position.y,
                             amount: dp.amount,
@@ -116,7 +115,8 @@ export class SaveCollector {
 
             rooms.push({
                 key: `${gx},${gy}`,
-                x: gx, y: gy,
+                x: gx,
+                y: gy,
                 type: room.roomType,
                 cleared: room.cleared,
                 itemTaken: room.itemTaken,
@@ -142,7 +142,7 @@ export class SaveCollector {
         }
 
         // 藏品栏
-        const cui = find('Canvas-UI/Collectible_UI')?.getComponent(CollectibleUI);
+        const cui = find("Canvas-UI/Collectible_UI")?.getComponent(CollectibleUI);
         const uiItemNames = cui ? cui.getItemNames() : [];
 
         return {
@@ -161,9 +161,9 @@ export class SaveCollector {
 
 function _findIsaac(gm: Node): Node | null {
     for (const child of gm.children) {
-        const mgr = child.getChildByName('RoomManager');
+        const mgr = child.getChildByName("RoomManager");
         if (mgr) {
-            const isaac = mgr.getChildByName('Isaac');
+            const isaac = mgr.getChildByName("Isaac");
             if (isaac) return isaac;
         }
     }
